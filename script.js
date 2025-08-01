@@ -11,12 +11,18 @@ function togglePin(v){
 }
 (function(){ 
   try { localStorage.setItem('simv122_theme', 'dark'); } catch(e){}
+  try { localStorage.setItem('simv122_pin', 'off'); } catch(e){}
   var savedTheme=null, savedPin=null;
   try{ savedTheme = localStorage.getItem('simv122_theme'); savedPin=localStorage.getItem('simv122_pin'); }catch(e){}
   if(savedTheme){ document.getElementById('themeSel').value = savedTheme; applyTheme(savedTheme); } else { document.getElementById('themeSel').value = 'dark';
   applyTheme('dark'); }
-  if(savedPin){ document.getElementById('pinSel').value = savedPin; togglePin(savedPin); }
-  else { togglePin('on'); }
+  if (savedPin) {
+  document.getElementById('pinSel').value = savedPin;
+  togglePin(savedPin);
+} else {
+  document.getElementById('pinSel').value = 'off';
+  togglePin('off');
+}
 })();
 
 function switchMode(v){

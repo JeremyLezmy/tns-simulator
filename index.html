@@ -50,11 +50,10 @@
           </select>
         </div> -->
         <div class="pill">
-          <label for="pinSel">Barre épinglée</label>
-          <select id="pinSel" onchange="togglePin(this.value)">
-            <option value="off" selected>Non</option>
-            <option value="on">Oui</option>
-          </select>
+          <button id="pinBtn" aria-label="Épingler la barre" onclick="togglePinButton()" style="font-size:16px;display:flex;align-items:center;gap:6px;">
+            <span id="pinEmoji">📌</span>
+            <span id="pinText">Épinglée</span>
+          </button>
         </div>
         <div class="pill">
           <label for="csvLocale">Export CSV</label>
@@ -70,6 +69,7 @@
       </div>
     </div>
   </div>
+  <div id="topbar-spacer" style="height: var(--topbar-h);"></div>
 
   <header class="container">
     <h1>Entrée par <u>CA</u> et charges + Projection pluriannuelle</h1>

@@ -9,21 +9,126 @@ function togglePin(v){
   if(v==='off'){ tb.classList.add('unpinned'); } else { tb.classList.remove('unpinned'); }
   try{ localStorage.setItem('simv122_pin', v); }catch(e){}
 }
-(function(){ 
-  try { localStorage.setItem('simv122_theme', 'dark'); } catch(e){}
-  try { localStorage.setItem('simv122_pin', 'off'); } catch(e){}
+(function(){
   var savedTheme=null, savedPin=null;
-  try{ savedTheme = localStorage.getItem('simv122_theme'); savedPin=localStorage.getItem('simv122_pin'); }catch(e){}
-  if(savedTheme){ document.getElementById('themeSel').value = savedTheme; applyTheme(savedTheme); } else { document.getElementById('themeSel').value = 'dark';
-  applyTheme('dark'); }
-  if (savedPin) {
-  document.getElementById('pinSel').value = savedPin;
-  togglePin(savedPin);
+  try{
+    savedTheme = localStorage.getItem('simv122_theme');
+    savedPin = localStorage.getItem('simv122_pin');
+  }catch(e){}
+
+  // thème par défaut sombre si rien
+  if (savedTheme){
+    document.getElementById('themeSel').value = savedTheme;
+    applyTheme(savedTheme);
+  } else {
+    document.getElementById('themeSel').value = 'dark';
+    applyTheme('dark');
+  }
+
+  // pin : par défaut non épinglé
+if (savedPin){
+  setPinUI(savedPin === 'on');
 } else {
-  document.getElementById('pinSel').value = 'off';
-  togglePin('off');
+  setPinUI(false); // par défaut non épinglé
 }
+
+  // restore rounding etc...
 })();
+
+
+function setPinUI(isPinned){
+  const btn = document.getElementById('pinBtn');
+  const emoji = document.getElementById('pinEmoji');
+  const text = document.getElementById('pinText');
+  const tb = document.getElementById('topbar');
+
+  // Choisir un repère : premier élément significatif après la topbar
+  const anchor = document.querySelector('header') || document.body.firstElementChild;
+  const beforeAnchorTop = anchor?.getBoundingClientRect().top;
+
+  // Appliquer l’état
+  if(isPinned){
+    tb.classList.remove('unpinned');
+    emoji.textContent = '📌';
+    text.textContent = 'Épinglée';
+    btn.setAttribute('aria-pressed','true');
+  } else {
+    tb.classList.add('unpinned');
+    emoji.textContent = '📍';
+    text.textContent = 'Non épinglée';
+    btn.setAttribute('aria-pressed','false');
+  }
+  try { localStorage.setItem('simv122_pin', isPinned ? 'on' : 'off'); } catch(e){}
+
+  // Mettre à jour spacer / hauteur si tu as cette logique séparée
+  if (typeof refreshTopbarHeight === 'function') refreshTopbarHeight();
+  if (typeof updateSpacerVisibility === 'function') updateSpacerVisibility();
+
+  // Compensation visible : mesurer après et ajuster le scroll pour que l'ancre reste au même endroit
+  const afterAnchorTop = anchor?.getBoundingClientRect().top;
+  if (beforeAnchorTop != null && afterAnchorTop != null) {
+    const shift = afterAnchorTop - beforeAnchorTop;
+    if (shift !== 0) {
+      window.scrollBy(0, shift);
+    }
+  }
+}
+
+
+function togglePinButton(){
+  const tb = document.getElementById('topbar');
+  const currentlyPinned = !tb.classList.contains('unpinned');
+  setPinUI(!currentlyPinned);
+}
+
+function refreshTopbarHeight() {
+  const tb = document.getElementById('topbar');
+  if (!tb) return;
+  // mesurer la hauteur effective (y compris si elle a wrap)
+  const h = tb.getBoundingClientRect().height;
+  document.documentElement.style.setProperty('--topbar-h', h + 'px');
+}
+window.addEventListener('load', refreshTopbarHeight);
+window.addEventListener('resize', refreshTopbarHeight);
+// Si tu as un mode où la barre change de taille (ex. pin/unpin), réactualise aussi :
+const originalSetPinUI = window.setPinUI;
+window.setPinUI = function(...args){
+  if (originalSetPinUI) originalSetPinUI.apply(this,args);
+  refreshTopbarHeight();
+  updateSpacerVisibility();
+};
+
+function updateSpacerVisibility() {
+  const tb = document.getElementById('topbar');
+  let spacer = document.getElementById('topbar-spacer');
+  if (!spacer) {
+    spacer = document.createElement('div');
+    spacer.id = 'topbar-spacer';
+    document.body.insertBefore(spacer, document.body.firstChild.nextSibling); // juste après la topbar
+  }
+  const isPinned = !tb.classList.contains('unpinned');
+  if (isPinned) {
+    // mettre un espace égal à la hauteur réelle
+    const h = tb.getBoundingClientRect().height;
+    spacer.style.height = h + 'px';
+    spacer.style.pointerEvents = 'none';
+  } else {
+    // plus d'espace quand ce n'est pas épinglé
+    spacer.style.height = '0';
+  }
+}
+
+
+
+// appeler à chaque changement pertinent
+window.addEventListener('load', () => {
+  refreshTopbarHeight();
+  updateSpacerVisibility();
+});
+window.addEventListener('resize', () => {
+  refreshTopbarHeight();
+  updateSpacerVisibility();
+});
 
 function switchMode(v){
   var tns = document.getElementById('blocTNS');

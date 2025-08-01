@@ -58,6 +58,32 @@
   --shadow: rgba(0,0,0,.25);
 }
 
+html {
+  scroll-padding-top: var(--topbar-h);
+}
+:target {
+  scroll-margin-top: var(--topbar-h);
+}
+/* 1. Pour que les sauts vers ancre (#notes etc.) n’effacent pas le début */
+html {
+  scroll-padding-top: calc(var(--topbar-h) + 8px);
+}
+
+/* 2. Pour que les titres visibles (h1/h2/sections) soient correctement décalés quand on scrolle manuellement */
+h1, h2, section {
+  scroll-margin-top: calc(var(--topbar-h) + 12px);
+}
+
+/* 3. Optionnel : si tu veux un “espace tampon” supplémentaire en haut du contenu principal */
+.content-top-spacer {
+  height: calc(var(--topbar-h) + 4px);
+}
+
+/* 4. Si tu utilises des ancres internes avec #id et que tu veux être sûr que l’élément ciblé n’est pas caché */
+:target {
+  scroll-margin-top: calc(var(--topbar-h) + 12px);
+}
+
 *{box-sizing:border-box;}
 html,body{height:100%;}
 body{
@@ -68,6 +94,7 @@ body{
   line-height:1.45;
   min-height:100%;
   padding-top:calc(var(--topbar-h)+8px);
+  
 }
 body::before{
   content:"";
@@ -171,6 +198,21 @@ button.btn-secondary{
   background: var(--reset-hover);
 }
 
+
+#pinBtn {
+  background: var(--panel);
+  border:1px var(--border);
+  border-radius:10px;
+  padding:6px 6px;
+  gap:6px;
+}
+/* #pinBtn[aria-pressed="true"] {
+  box-shadow: 0 0 0 1px var(--accent);
+} */
+
+body > .container:first-of-type {
+  padding-top: 50px;
+}
 /* Layout */
 .container{
   max-width:1240px;

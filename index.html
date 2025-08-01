@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Simulateur TNS & IR – CA → R (France) • v1.2</title>
+  <title>Simulateur TNS & IR – CA → R (France) • v1.3</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <div class="topbar" id="topbar">
     <div class="container">
-      <div style="font-weight:700">Simulateur TNS & IR • v1.2</div>
+      <div style="font-weight:700">Simulateur TNS & IR • v1.3</div>
       <div class="actions">
         <div class="pill">
           <label for="modeSel">Mode rémunération</label>
@@ -17,6 +17,7 @@
             <option value="tns" selected>EURL/EI à l’IS (TNS)</option>
             <option value="sasuIR">SASU à l’IR (transparence)</option>
             <option value="sasuIS">SASU à l’IS (salaire + dividendes)</option>
+            <option value="micro">Micro-entreprise</option>
           </select>
         </div>
         <div class="pill">
@@ -248,6 +249,46 @@
       </div>
     </section>
 
+    <!-- Bloc Micro-entreprise -->
+    <section class="card span-12" id="blocMICRO" style="display:none">
+      <h2>Micro-entreprise</h2>
+      <div class="row">
+        <div>
+          <label for="microCA">CA (année 1) €</label>
+          <input id="microCA" type="number" value="70000">
+        </div>
+        <div>
+          <label for="microGrow">Croissance CA (% / an)</label>
+          <input id="microGrow" type="number" value="5">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label for="microActivity">Type d’activité</label>
+          <select id="microActivity">
+            <option value="service" selected>Prestation de services / profession libérale</option>
+            <option value="commerce">Vente de marchandises (y compris hébergement)</option>
+          </select>
+          <div class="hint">Les seuils de CA annuels diffèrent selon la nature de l’activité.  Voir Notes.</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:end">
+          <button type="button" class="btn" onclick="calcMICRO(true)">Calculer (Micro-entreprise année 1)</button>
+          <button class="btn btn-reset subtle" onclick="resetMICRO()">Réinit. Micro</button>
+        </div>
+      </div>
+      <div class="kpi">
+        <div class="box">
+          <div class="label">CA retenu</div>
+          <div class="value" id="microKpiCA">–</div>
+        </div>
+        <div class="box">
+          <div class="label">Statut de seuil</div>
+          <div class="value" id="microWarning">–</div>
+        </div>
+      </div>
+      <div id="microWarningDetail" class="hint" style="margin-top:6px;"></div>
+    </section>
+
     <!-- IR + Net dispo (année 1) -->
     <section class="card span-12">
       <h2>Impôt sur le revenu du foyer + Net dispo (année 1)</h2>
@@ -259,6 +300,7 @@
             <option value="tns" selected>TNS (R × 90 %)</option>
             <option value="sasu">SASU IR (salaire × 90 % + BNC)</option>
             <option value="sasuIS">SASU IS (salaire × 90 % + dividendes selon mode)</option>
+            <option value="micro">Micro-entreprise</option>
             <option value="manual">Manuel</option>
           </select>
         </div>
@@ -291,6 +333,8 @@
             <option value="tns_only">Dirigeant seulement (TNS)</option>
             <option value="sasu_bnc_spouse">SASU IR: salaire + BNC + Conjoint</option>
             <option value="sasu_is_spouse">SASU IS: net salaire + net dividendes + Conjoint</option>
+            <option value="micro_spouse">Micro + Conjoint</option>
+            <option value="micro_only">Micro seul</option>
           </select>
           <div class="hint">Synchronisé automatiquement sur le <b>mode principal</b>.</div>
         </div>
@@ -318,38 +362,34 @@
       <div class="console" id="consoleIR"></div>
     </section>
 
-    <!-- PROJECTION PLURIANNUELLE -->
-    <section class="card span-12">
-      <h2>Projection pluriannuelle</h2>
-      <div class="row">
-        <div class="muted">Barème IR indexé par votre inflation, PASS et SMIC évolutifs, revenus et paramètres de chaque mode actualisés chaque année.</div>
-        <div style="text-align:right">
-          <button type="button" class="btn" onclick="projectYears()">Calculer la projection</button>
-        </div>
-      </div>
+<!-- PROJECTION PLURIANNUELLE -->
+<section class="card span-12">
+  <h2>Projection pluriannuelle</h2>
+  <div class="row">
+    <div class="muted">Barème IR indexé par votre inflation, PASS et SMIC évolutifs, revenus et paramètres de chaque mode actualisés chaque année.</div>
+    <div style="text-align:right">
+      <button type="button" class="btn" onclick="projectYears()">Calculer la projection</button>
+    </div>
+  </div>
 
-      <div class="table-wrapper">
-        <table>
-          <thead>
-            <tr>
-              <th>Année</th><th class="num">PASS</th><th class="num">SMIC h.</th><th>Mode</th>
-              <th class="num">CA</th><th class="num">R/Salaire</th><th class="num">BNC</th>
-              <th class="num">Div. bruts</th><th class="num">Div. nets</th><th>Mode div.</th>
-              <th class="num">Cotis/IS/PS</th><th class="num">RNI foyer</th><th class="num">IR</th><th class="num">Net foyer</th>
-            </tr>
-          </thead>
-          <tbody id="tblProj"></tbody>
-          <tfoot>
-            <tr>
-              <th>Total / Moyenne</th><th></th><th></th><th></th>
-              <th class="num" id="pCA">–</th><th class="num" id="pR">–</th><th class="num" id="pBNC">–</th>
-              <th class="num" id="pDivB">–</th><th class="num" id="pDivN">–</th><th></th>
-              <th class="num" id="pCot">–</th><th class="num" id="pRNI">–</th><th class="num" id="pIR">–</th><th class="num" id="pNet">–</th>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-    </section>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr id="projHeaderRow"></tr>
+      </thead>
+      <tbody id="tblProj"></tbody>
+      <tfoot>
+        <tr>
+          <th>Total / Moyenne</th><th></th><th></th><th></th>
+          <th class="num" id="pCA">–</th><th class="num" id="pR">–</th><th class="num" id="pBNC">–</th>
+          <th class="num" id="pDivB">–</th><th class="num" id="pDivN">–</th><th></th>
+          <th class="num" id="pCot">–</th><th class="num" id="pRNI">–</th><th class="num" id="pIR">–</th><th class="num" id="pNet">–</th>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</section>
+
 
     <!-- NOTES -->
     <section class="card span-12" id="notes">

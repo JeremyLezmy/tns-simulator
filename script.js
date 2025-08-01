@@ -134,12 +134,27 @@ function switchMode(v){
   var tns = document.getElementById('blocTNS');
   var sasu = document.getElementById('blocSASU');
   var sisu = document.getElementById('blocSASUIS');
+  var micro = document.getElementById('blocMICRO');
   var cashSel = document.getElementById('cashOpts');
-  if(v==='tns'){ tns.style.display='block'; sasu.style.display='none'; sisu.style.display='none'; document.getElementById('syncSource').value='tns'; cashSel.value='tns_spouse'; }
-  else if(v==='sasuIR'){ tns.style.display='none'; sasu.style.display='block'; sisu.style.display='none'; document.getElementById('syncSource').value='sasu'; cashSel.value='sasu_bnc_spouse'; }
-  else { tns.style.display='none'; sasu.style.display='none'; sisu.style.display='block'; document.getElementById('syncSource').value='sasuIS'; cashSel.value='sasu_is_spouse'; }
+  if(v==='tns'){
+    tns.style.display='block'; sasu.style.display='none'; sisu.style.display='none'; micro.style.display='none';
+    document.getElementById('syncSource').value='tns'; cashSel.value='tns_spouse';
+  }
+  else if(v==='sasuIR'){
+    tns.style.display='none'; sasu.style.display='block'; sisu.style.display='none'; micro.style.display='none';
+    document.getElementById('syncSource').value='sasu'; cashSel.value='sasu_bnc_spouse';
+  }
+  else if(v==='sasuIS'){
+    tns.style.display='none'; sasu.style.display='none'; sisu.style.display='block'; micro.style.display='none';
+    document.getElementById('syncSource').value='sasuIS'; cashSel.value='sasu_is_spouse';
+  }
+  else if(v==='micro'){
+    tns.style.display='none'; sasu.style.display='none'; sisu.style.display='none'; micro.style.display='block';
+    document.getElementById('syncSource').value='micro'; cashSel.value='micro_spouse';
+  }
   syncIR();
 }
+
 
 /* Console helpers */
 function log(msg){ var c=document.getElementById('console'); if(!c) return; var t=new Date().toLocaleTimeString('fr-FR'); c.textContent += '['+t+'] '+msg+'\\n'; c.scrollTop=c.scrollHeight; }
@@ -170,6 +185,11 @@ function applyRounding(val){
 function fmtEUR(n){ return (isFinite(n)? n.toLocaleString('fr-FR',{style:'currency',currency:'EUR',minimumFractionDigits:DISP_DEC,maximumFractionDigits:DISP_DEC}):'–'); }
 function fmtPct(n){ return (isFinite(n)? (n*100).toFixed(1).replace('.',',')+' %' : '–'); }
 function val(id){ var el=document.getElementById(id); if(!el) return 0; var raw=(el.value||'').toString().replace(',', '.'); var x=parseFloat(raw); return isFinite(x)?x:0; }
+// Seuils micro-entreprise 2025
+const MICRO_THRESHOLDS = {
+  service: 77700,     // prestation de services / profession libérale
+  commerce: 188700   // vente de marchandises (y compris hébergement)
+};
 
 /* NOTES */
 var NOTES = {
@@ -193,6 +213,7 @@ var NOTES = {
     "<li><b>SMIC & trimestres</b> : 1 trimestre = <b>150 × SMIC horaire brut</b> ; 4 trimestres = 600 × SMIC horaire brut.</li>"+
     "<li><b>PUMA</b> : en l’absence de revenus d’activité, la CSM peut être due. Le simulateur signale simplement le risque (pas de calcul fin).</li>"+
     "<li>Les taux de cotisations <b>assimilé salarié</b> varient selon statut (cadre/non cadre, exonérations). On laisse des <b>taux moyens</b> modifiables.</li>"+
+    "<li><b>Micro-entreprise</b> : les seuils de chiffre d’affaires annuels dépendent de la nature de l’activité (prestations de services/professions libérales ≈ "+fmtEUR(MICRO_THRESHOLDS.service)+", vente de marchandises ≈ "+fmtEUR(MICRO_THRESHOLDS.commerce)+"). Un dépassement ponctuel est toléré une année ; en cas de dépassement pendant <b>deux années consécutives</b>, vous sortez automatiquement du régime micro et basculez au régime réel à partir du 1er janvier suivant. Voir la rubrique correspondante pour détails et sources.</li>"+
     "</ul>",
   sources:
     "<h3>Sources officielles</h3>"+
@@ -204,6 +225,7 @@ var NOTES = {
     "<li>Dividendes : PFU ou barème + abattement 40 % — Service-Public Pro : <a target='_blank' rel='noopener' href='https://entreprendre.service-public.fr/vosdroits/F32963'>F32963</a> • Service-Public Particulier : <a target='_blank' rel='noopener' href='https://www.service-public.fr/particuliers/vosdroits/F34913/1_7'>F34913</a></li>"+
     "<li>Validation des trimestres : <b>150 × SMIC horaire brut</b> — Service-Public : <a target='_blank' rel='noopener' href='https://www.service-public.fr/particuliers/vosdroits/F1761'>F1761</a></li>"+
     "<li>PUMA / CSM — URSSAF : <a target='_blank' rel='noopener' href='https://www.urssaf.fr/accueil/particulier/beneficiaire-puma.html'>Bénéficiaire PUMa</a></li>"+
+    "<li>Dépassement des seuils micro-entreprise : tolérance sur une année, sortie automatique après deux années consécutives <a target='_blank' rel='noopener' href='https://entreprendre.service-public.fr/vosdroits/F32353'>Seuil CA Micro</a></li>"+
     "</ul>"+
     "<p>Vérifiez chaque année les taux exacts (barème IR, PASS, SMIC, IS) et conditions PME pour l’IS à 15 %.</p>"
 };
@@ -302,6 +324,15 @@ function syncIR(){
     document.getElementById('rDivIR').value=Math.round(window.__SISU_DivIRBase||0);
     document.getElementById('cashOpts').value='sasu_is_spouse';
   }
+  else if(src === 'micro'){
+  var micro = window.__MICRO_state || {};
+  // On considère que le revenu imposable est le CA (simplification) : ajuster si nécessaire
+  var ca = micro.ca || 0;
+  document.getElementById('rSal').value = Math.round(0.0); // pas de salaire classique
+  document.getElementById('rBnc').value = Math.round(ca); // assimilé BNC pour foyer
+  document.getElementById('rDivIR').value = 0;
+  document.getElementById('cashOpts').value = 'micro_spouse';
+}
   calcIR();
 }
 
@@ -455,6 +486,7 @@ function calcSISU(triggerProj){
   var divIRBase = 0.6 * divBrut; // abattement 40 %
   var divNetBareme = divBrut - psDiv; // IR payé via barème
 
+
   // Save globals for IR & Net
   window.__SISU_SalBrut = salBrut;
   window.__SISU_NetSal = salNet;
@@ -502,10 +534,79 @@ function calcSISU(triggerProj){
   if(triggerProj) projectYears();
 }
 
+
+  /* Micro */
+function calcMICRO(triggerProj){
+  var ca = Math.max(0, val('microCA'));
+  var grow = val('microGrow')/100;
+  var activity = document.getElementById('microActivity').value; // 'service' ou 'commerce'
+  var threshold = MICRO_THRESHOLDS[activity] || MICRO_THRESHOLDS.service;
+
+  // Vérifier dépassement ponctuel
+  var warningEl = document.getElementById('microWarning');
+  var detailEl = document.getElementById('microWarningDetail');
+  var exceeds = ca > threshold;
+
+  // Stocker état pour projection
+  window.__MICRO_state = {
+    ca: ca,
+    grow: grow,
+    activity: activity,
+    threshold: threshold,
+    exceeds: exceeds
+  };
+
+  document.getElementById('microKpiCA').textContent = fmtEUR(ca);
+
+  // Première année : tolérance si dépassement unique
+  var message = '';
+  if(exceeds){
+    message = '⚠️ CA annuel dépasse le seuil de ' + fmtEUR(threshold) + ' pour l’activité "' + activity + '".';
+    warningEl.textContent = 'Dépassement (à surveiller)';
+    warningEl.classList.add('warn');
+    detailEl.innerHTML = 'Vous dépassez le seuil autorisé pour la micro-entreprise cette année. Si ce dépassement se répète deux années consécutives, vous passerez automatiquement au régime réel au 1er janvier suivant. Voir Notes pour les règles complètes.'; 
+  } else {
+    message = '✅ CA sous le seuil de ' + fmtEUR(threshold) + '.';
+    warningEl.textContent = 'OK';
+    warningEl.classList.remove('warn');
+    warningEl.classList.add('ok');
+    detailEl.textContent = '';
+  }
+
+  log('calcMICRO — CA=' + ca.toFixed(0) + ' activité=' + activity + ' seuil=' + threshold + (exceeds ? ' (dépassement)' : ''));
+  if(triggerProj) projectYears();
+}
+
+
+function buildProjHeader(mode) {
+  const baseTh = [
+    '<th>Année</th>',
+    '<th class="num">PASS</th>',
+    '<th class="num">SMIC h.</th>',
+    '<th>Mode</th>',
+    '<th class="num">CA</th>',
+    '<th class="num">R/Salaire</th>',
+    '<th class="num">BNC</th>',
+    '<th class="num">Div. bruts</th>',
+    '<th class="num">Div. nets</th>',
+    '<th>Mode div.</th>',
+    '<th class="num">Cotis/IS/PS</th>',
+    '<th class="num">RNI foyer</th>',
+    '<th class="num">IR</th>',
+    '<th class="num">Net foyer</th>'
+  ];
+  if (mode === 'micro') {
+    baseTh.push('<th>Warning micro</th>');
+  }
+  document.getElementById('projHeaderRow').innerHTML = baseTh.join('');
+}
+
+
 /* PROJECTION */
 function projectYears(){
   // Ensure year-1 states are up-to-date for consistency
   var mode = document.getElementById('modeSel').value;
+  buildProjHeader(mode);
   if(mode==='tns'){ mainCalc(false); } else if(mode==='sasuIR'){ calcSASU(false); } else { calcSISU(false); }
   calcIR();
 
@@ -582,7 +683,79 @@ function projectYears(){
         '<td class="num">'+fmtEUR(psDue)+'</td><td class="num">'+fmtEUR(RNI2)+'</td><td class="num">'+fmtEUR(IR2)+'</td><td class="num">'+fmtEUR(net2)+'</td></tr>';
       tbody.innerHTML += tr2;
       sumR+=salaire; sumB+=bnc; sumCot+=psDue; sumRNI+=RNI2; sumIR+=IR2; sumNet+=net2;
-    }else{
+    } else if (mode === 'micro') {
+      var microState = window.__MICRO_state || {};
+      var ca = (k === 0 ? microState.ca : ca * (1 + microState.grow));
+      var activity = microState.activity || 'service';
+      var threshold = MICRO_THRESHOLDS[activity];
+      var parts = Math.max(1, val('parts'));
+      var indexBar = infl * k;
+      var baseSpouse = 0.66 * spouseCA;
+
+      var RNI = Math.max(0, ca + baseSpouse);
+      var irRes = computeTaxFromBareme(RNI / parts, indexBar);
+      var IR = irRes.tax * parts;
+      var enc = ca + spouseCA;
+      var net = enc - IR;
+
+      // Historique de dépassement pour détecter trois années consécutives
+      if (!window.__MICRO_projection) { window.__MICRO_projection = { exceedHistory: [] }; }
+      var prevExceed = ca > threshold;
+      window.__MICRO_projection.exceedHistory[k] = prevExceed;
+
+      // Bloquer seulement si on a dépassé 3 années d’affilée
+      var blocked = false;
+      if (
+        k >= 2 &&
+        window.__MICRO_projection.exceedHistory[k - 2] &&
+        window.__MICRO_projection.exceedHistory[k - 1] &&
+        window.__MICRO_projection.exceedHistory[k]
+      ) {
+        blocked = true;
+      }
+
+      // Classe visuelle si blocage
+      var extraClass = blocked ? ' class="proj-blocked"' : '';
+
+      // Construire warningText
+      var warningText = '';
+      if (blocked) {
+        warningText = '❌ Trois dépassements consécutifs : sortie du régime micro.';
+      } else if (prevExceed) {
+        var consec = (k >= 1 && window.__MICRO_projection.exceedHistory[k - 1]) ? 2 : 1;
+        if (consec === 2) {
+          warningText = '⚠️ Deux années d’affilée (dernier toléré).';
+        } else {
+          warningText = '⚠️ Dépassement cette année.';
+        }
+      } else {
+        warningText = '✅ Sous le seuil.';
+      }
+
+      // Ligne avec warning dans une colonne dédiée
+      var tr = '<tr' + extraClass + '>' +
+        '<td>' + year + '</td>' +
+        '<td class="num">' + fmtEUR(PASS) + '</td>' +
+        '<td class="num">' + fmtEUR(SMIC) + '</td>' +
+        '<td>Micro-entreprise</td>' +
+        '<td class="num">' + fmtEUR(ca) + '</td>' +
+        '<td class="num">–</td>' +
+        '<td class="num">–</td>' +
+        '<td class="num">–</td>' +
+        '<td class="num">–</td>' +
+        '<td>–</td>' +
+        '<td class="num">–</td>' +
+        '<td class="num">' + fmtEUR(RNI) + '</td>' +
+        '<td class="num">' + fmtEUR(IR) + '</td>' +
+        '<td class="num">' + fmtEUR(net) + '</td>' +
+        '<td>' + warningText + '</td>' +
+        '</tr>';
+      tbody.innerHTML += tr;
+
+      // Totaux
+      sumCA += ca; sumCot += 0; sumRNI += RNI; sumIR += IR; sumNet += net;
+    }
+    else{
       var salBrut = (salModeIS==='min4q') ? (600*SMIC) : sal0IS;
       var coutEmp = salBrut*(1+ratePat); var salNet = salBrut*(1-rateSal);
       var marge = CA*(1 - chargesPct/100) - chargesFix0;
@@ -623,6 +796,14 @@ function projectYears(){
   document.getElementById('pIR').textContent = fmtEUR(sumIR);
   document.getElementById('pNet').textContent = fmtEUR(sumNet);
 }
+
+function resetMICRO(){
+  document.getElementById('microCA').value = 70000;
+  document.getElementById('microGrow').value = 5;
+  document.getElementById('microActivity').value = 'service';
+  calcMICRO(true);
+}
+
 
 /* EXPORT CSV */
 function toCsvNumber(n, locale){ 
@@ -852,4 +1033,6 @@ window.showNote    = showNote;
 window.calcIR      = calcIR;
 window.updateMobileHint = detectMobileView; // exposer si besoin
 window.toggleCompact = toggleCompact;
+window.calcMICRO = calcMICRO;
+window.resetMICRO = resetMICRO;
 

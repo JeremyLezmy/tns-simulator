@@ -332,6 +332,27 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;}
     align-items:stretch;
     gap:6px;
   }
+
+.micro-warning {
+  background: rgba(255, 190, 0, 0.08);
+  border: 1px solid #ffb84d;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-weight:600;
+}
+.proj-blocked {
+  background: rgba(220, 60, 60, 0.08);
+}
+
+.proj-blocked td {
+  font-weight: 600;
+  border-left: 3px solid var(--danger);
+}
+.micro-warning-detail td {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
 /* Responsive / compact */
 @media (max-width: 240px){
   .grid{grid-template-columns:1fr;}

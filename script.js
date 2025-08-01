@@ -936,7 +936,7 @@ function exportCSV(){
 }
 
 /* Init */
-function updateAll(){ calcSASU(false); mainCalc(false); calcSISU(false); syncIR(); }
+function updateAll(){ calcSASU(false); mainCalc(false); calcSISU(false); syncIR(); projectYears() }
 (function(){ updateAll(); showNote('howto'); })();
 
 function detectMobileView() {

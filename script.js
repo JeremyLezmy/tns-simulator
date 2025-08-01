@@ -1,7 +1,7 @@
 /*
  * Copyright © 2025 Jérémy Lezmy.
  * Usage non commercial uniquement. Pour une utilisation commerciale,
- * contactez jeremy.lezmy@phusis.io pour obtenir une licence.
+ * contactez eremy.lezmy-robert@hotmail.fr pour obtenir une licence.
  */
 
 /* THEME + PIN */
@@ -15,70 +15,78 @@ function togglePin(v){
   if(v==='off'){ tb.classList.add('unpinned'); } else { tb.classList.remove('unpinned'); }
   try{ localStorage.setItem('simv122_pin', v); }catch(e){}
 }
-(function(){
-  var savedTheme=null, savedPin=null;
+document.addEventListener('DOMContentLoaded', function(){
+  var savedTheme = null, savedPin = null;
   try{
     savedTheme = localStorage.getItem('simv122_theme');
     savedPin = localStorage.getItem('simv122_pin');
-  }catch(e){}
+  } catch(e){}
 
   // thème par défaut sombre si rien
   if (savedTheme){
-    document.getElementById('themeSel').value = savedTheme;
+    var themeSel = document.getElementById('themeSel');
+    if (themeSel) themeSel.value = savedTheme;
     applyTheme(savedTheme);
   } else {
-    document.getElementById('themeSel').value = 'dark';
+    var themeSel = document.getElementById('themeSel');
+    if (themeSel) themeSel.value = 'dark';
     applyTheme('dark');
   }
 
   // pin : par défaut non épinglé
-if (savedPin){
-  setPinUI(savedPin === 'on');
-} else {
-  setPinUI(false); // par défaut non épinglé
-}
+  if (savedPin){
+    setPinUI(savedPin === 'on');
+  } else {
+    setPinUI(false);
+  }
 
   // restore rounding etc...
-})();
+  showNote('howto');
+  updateAll();
+});
+
 
 
 function setPinUI(isPinned){
+  const tb = document.getElementById('topbar');
+  if (!tb) return;
   const btn = document.getElementById('pinBtn');
   const emoji = document.getElementById('pinEmoji');
   const text = document.getElementById('pinText');
-  const tb = document.getElementById('topbar');
-
-  // Choisir un repère : premier élément significatif après la topbar
   const anchor = document.querySelector('header') || document.body.firstElementChild;
   const beforeAnchorTop = anchor?.getBoundingClientRect().top;
 
-  // Appliquer l’état
-  if(isPinned){
-    tb.classList.remove('unpinned');
-    emoji.textContent = '📌';
-    text.textContent = 'Épinglée';
-    btn.setAttribute('aria-pressed','true');
-  } else {
-    tb.classList.add('unpinned');
-    emoji.textContent = '📍';
-    text.textContent = 'Non épinglée';
-    btn.setAttribute('aria-pressed','false');
-  }
-  try { localStorage.setItem('simv122_pin', isPinned ? 'on' : 'off'); } catch(e){}
-
-  // Mettre à jour spacer / hauteur si tu as cette logique séparée
-  if (typeof refreshTopbarHeight === 'function') refreshTopbarHeight();
-  if (typeof updateSpacerVisibility === 'function') updateSpacerVisibility();
-
-  // Compensation visible : mesurer après et ajuster le scroll pour que l'ancre reste au même endroit
-  const afterAnchorTop = anchor?.getBoundingClientRect().top;
-  if (beforeAnchorTop != null && afterAnchorTop != null) {
-    const shift = afterAnchorTop - beforeAnchorTop;
-    if (shift !== 0) {
-      window.scrollBy(0, shift);
+  // Appliquer l’état dans une frame pour éviter reflows intermédiaires visibles
+  requestAnimationFrame(() => {
+    if(isPinned){
+      tb.classList.remove('unpinned');
+      emoji.textContent = '📌';
+      text.textContent = 'Épinglée';
+      btn?.setAttribute('aria-pressed','true');
+    } else {
+      tb.classList.add('unpinned');
+      emoji.textContent = '📍';
+      text.textContent = 'Non épinglée';
+      btn?.setAttribute('aria-pressed','false');
     }
-  }
+    try { localStorage.setItem('simv122_pin', isPinned ? 'on' : 'off'); } catch(e){}
+
+    if (typeof refreshTopbarHeight === 'function') refreshTopbarHeight();
+    if (typeof updateSpacerVisibility === 'function') updateSpacerVisibility();
+
+    // Ajustement du scroll une frame après que le layout ait évolué
+    requestAnimationFrame(() => {
+      const afterAnchorTop = anchor?.getBoundingClientRect().top;
+      if (beforeAnchorTop != null && afterAnchorTop != null) {
+        const shift = afterAnchorTop - beforeAnchorTop;
+        if (shift !== 0) {
+          window.scrollBy(0, shift);
+        }
+      }
+    });
+  });
 }
+
 
 
 function togglePinButton(){
@@ -136,30 +144,68 @@ window.addEventListener('resize', () => {
   updateSpacerVisibility();
 });
 
+function updateSalaireHelper(){
+  // recalculer en fonction du mode et relancer salarié
+  calcSALARIE(true);
+}
+
 function switchMode(v){
   var tns = document.getElementById('blocTNS');
   var sasu = document.getElementById('blocSASU');
   var sisu = document.getElementById('blocSASUIS');
   var micro = document.getElementById('blocMICRO');
+  var salarie = document.getElementById('blocSALARIE');
   var cashSel = document.getElementById('cashOpts');
-  if(v==='tns'){
-    tns.style.display='block'; sasu.style.display='none'; sisu.style.display='none'; micro.style.display='none';
-    document.getElementById('syncSource').value='tns'; cashSel.value='tns_spouse';
-  }
-  else if(v==='sasuIR'){
-    tns.style.display='none'; sasu.style.display='block'; sisu.style.display='none'; micro.style.display='none';
-    document.getElementById('syncSource').value='sasu'; cashSel.value='sasu_bnc_spouse';
-  }
-  else if(v==='sasuIS'){
-    tns.style.display='none'; sasu.style.display='none'; sisu.style.display='block'; micro.style.display='none';
-    document.getElementById('syncSource').value='sasuIS'; cashSel.value='sasu_is_spouse';
-  }
-  else if(v==='micro'){
-    tns.style.display='none'; sasu.style.display='none'; sisu.style.display='none'; micro.style.display='block';
-    document.getElementById('syncSource').value='micro'; cashSel.value='micro_spouse';
-  }
+
+  // Cacher tout par défaut
+  tns.style.display = 'none';
+  sasu.style.display = 'none';
+  sisu.style.display = 'none';
+  micro.style.display = 'none';
+  if (salarie) salarie.style.display = 'none';
+
+  if(v === 'tns'){
+  tns.style.display='block';
+  document.getElementById('syncSource').value='tns';
+  mainCalc(true);
   syncIR();
 }
+else if(v === 'sasuIR'){
+  sasu.style.display='block';
+  document.getElementById('syncSource').value='sasu';
+  calcSASU(true);
+  syncIR(); // met à jour l'IR après avoir rempli les valeurs micro
+  return;
+}
+else if(v === 'sasuIS'){
+  sisu.style.display='block';
+  document.getElementById('syncSource').value='sasuIS';
+  calcSISU(true);
+  syncIR(); // met à jour l'IR après avoir rempli les valeurs micro
+  return;
+}
+else if(v === 'micro'){
+  micro.style.display='block';
+  document.getElementById('syncSource').value='micro';
+  cashSel.value = 'you_plus_spouse';
+  // recalcul + projection automatique en mode micro
+  calcMICRO(true);
+  syncIR(); // met à jour l'IR après avoir rempli les valeurs micro
+  return;
+}
+  else if(v === 'salarie'){
+    if (salarie) salarie.style.display='block';
+    document.getElementById('syncSource').value='salarie';
+    cashSel.value='you_plus_spouse';
+    calcSALARIE(true);
+    syncIR();
+    return;
+  }
+
+  // Pour les autres modes, on resynchronise
+  syncIR();
+}
+
 
 
 /* Console helpers */
@@ -187,7 +233,39 @@ function applyRounding(val){
 })();
 
 
+// setup unique listener pour le changement de statut cadre / non-cadre
+let _salaryTimeout;
+;(function(){
+  const statutEl = document.getElementById('statutSal');
+  if (!statutEl) return;
+  statutEl.addEventListener('change', () => {
+    const statut = statutEl.value;
+    const newDefault = (statut === 'cadre') ? 26 : 22;
+    const tauxInput = document.getElementById('tauxSalarial');
+    if (!tauxInput) return;
+    const current = parseFloat(tauxInput.value);
+    // si c'était l'ancien défaut, on le remplace par le nouveau
+    if ((statut === 'cadre' && current === 22) || (statut !== 'cadre' && current === 26)) {
+      tauxInput.value = newDefault;
+    }
+    // recalculer une fois
+    clearTimeout(_salaryTimeout);
+    _salaryTimeout = setTimeout(() => {
+      calcSALARIE(true);
+    }, 50);
+  });
+})();
+
+
 /* Utils */
+
+// ------------ safe DOM helpers ------------
+function safeSetText(id, txt){
+  var el = document.getElementById(id);
+  if (el) el.textContent = txt;
+}
+
+
 function fmtEUR(n){ return (isFinite(n)? n.toLocaleString('fr-FR',{style:'currency',currency:'EUR',minimumFractionDigits:DISP_DEC,maximumFractionDigits:DISP_DEC}):'–'); }
 function fmtPct(n){ return (isFinite(n)? (n*100).toFixed(1).replace('.',',')+' %' : '–'); }
 function val(id){ var el=document.getElementById(id); if(!el) return 0; var raw=(el.value||'').toString().replace(',', '.'); var x=parseFloat(raw); return isFinite(x)?x:0; }
@@ -277,70 +355,155 @@ function buildIrTable(res, parts){
   document.getElementById('sumTaxFoyer').textContent = fmtEUR(res.tax*parts);
 }
 function calcIR(){
-  var parts=Math.max(1,val('parts'));
-  var rSal=val('rSal'), rBnc=val('rBnc'), rDivIR=val('rDivIR');
-  var caSp=val('caSpouse');
-  var baseSpouse=0.66*(caSp*12);
-  var dedCsg=0;
-  if (document.getElementById('deductCsg').value==='1' && window.__A_tns){ dedCsg = 0.068 * window.__A_tns; }
+  var parts = Math.max(1, val('parts'));
+  var rSal = val('rSal'), rBnc = val('rBnc'), rDivIR = val('rDivIR');
+  var caSp = val('caSpouse');
+  var rawCashPref = document.getElementById('cashOpts').value;
+  var cashPref = getNormalizedCashPref(rawCashPref);
+  var includeSpouse = (cashPref === 'you_plus_spouse');
+  // cas micro : s'assurer que rBnc reflète l'abattement même si on a choisi "Vous seul"
+  if (document.getElementById('modeSel').value === 'micro') {
+    var micro = window.__MICRO_state || {};
+    var baseMicroBnc = 0.66 * (micro.ca || 0);
+    document.getElementById('rSal').value = 0;
+    document.getElementById('rBnc').value = Math.round(baseMicroBnc);
+    document.getElementById('rDivIR').value = 0;
+
+    // rafraîchir les variables locales après écriture pour que le reste du calcul utilise les bons
+    rSal = val('rSal');
+    rBnc = val('rBnc');
+    rDivIR = val('rDivIR');
+  }
+
+
+  // base conjoint conditionnée
+  var baseSpouse = includeSpouse ? 0.66 * (caSp * 12) : 0;
+
+  var dedCsg = 0;
+  if (document.getElementById('deductCsg').value === '1' && window.__A_tns){
+    dedCsg = 0.068 * window.__A_tns;
+  }
+  // debug log des entrées
+  logIR(`calcIR start: mode=${document.getElementById('modeSel').value}, cashOpts=${document.getElementById('cashOpts').value}`);
+  logIR(`  inputs: rSal=${rSal}, rBnc=${rBnc}, rDivIR=${rDivIR}, caSpouse=${caSp}`);
+
+  // déterminer si conjoint inclus
+  logIR(`  cashPref normalized: ${cashPref}, includeSpouse=${includeSpouse}`);
+  // Calcul du RNI (conjoint inclus uniquement si demandé)
   var RNI = Math.max(0, rSal + rBnc + rDivIR + baseSpouse - dedCsg);
-  var res = computeTaxFromBareme(RNI/parts, val('inflation'));
+  if (document.getElementById('modeSel').value === 'micro') {
+  logIR(`micro RNI before tax: ${RNI}, parts=${parts}, base par part=${(RNI/parts).toFixed(2)}`);
+}
+
+  var res = computeTaxFromBareme(RNI / parts, val('inflation'));
   var IR = res.tax * parts;
-  document.getElementById('rniFoyer').textContent = fmtEUR(RNI);
-  document.getElementById('irOut').textContent = fmtEUR(IR);
-  document.getElementById('tmiOut').textContent = (res.tmiRate*100).toFixed(0)+' %';
+
+  safeSetText('rniFoyer', fmtEUR(RNI));
+  safeSetText('irOut', fmtEUR(IR));
+  safeSetText('tmiOut', (res.tmiRate * 100).toFixed(0) + ' %');
   buildIrTable(res, parts);
 
-  // Net dispo encaissements (année 1)
-  var mode = document.getElementById('cashOpts').value;
+  // Encaissements : "Vous seul(e)" vs "Vous + Conjoint(e)"
+  var mainMode = document.getElementById('modeSel').value;
   var enc = 0;
-  if(mode==='tns_spouse'){
-    enc += (window.__Rout||0);
-    enc += caSp*12;
-  }else if(mode==='tns_only'){
-    enc += (window.__Rout||0);
-  }else if(mode==='sasu_bnc_spouse'){
-    enc += (window.__SASUSalaire||0);
-    enc += (window.__SASUBnc||0);
-    enc += caSp*12;
-  }else if(mode==='sasu_is_spouse'){
-    enc += (window.__SISU_NetSal||0);
-    enc += (window.__SISU_DivNet||0);
-    enc += caSp*12;
+  var spousePart = includeSpouse ? caSp * 12 : 0;
+
+  if (mainMode === 'tns'){
+    enc += (window.__Rout || 0);
+    enc += spousePart;
+  } else if (mainMode === 'sasuIR'){
+    enc += (window.__SASUSalaire || 0);
+    enc += (window.__SASUBnc || 0);
+    enc += spousePart;
+  } else if (mainMode === 'sasuIS'){
+    enc += (window.__SISU_NetSal || 0);
+    enc += (window.__SISU_DivNet || 0);
+    enc += spousePart;
+  } else if (mainMode === 'micro'){
+    enc += (window.__MICRO_state?.ca || 0);
+    enc += spousePart;
+  } else if (mainMode === 'salarie'){
+    enc += (window.__SALARIE_state?.netAvantIR || 0);
+    enc += spousePart;
+  } else {
+    enc += rSal + rBnc + rDivIR;
+    enc += spousePart;
   }
+
   var net = enc - IR;
-  document.getElementById('netFoyer').textContent = fmtEUR(net);
-  window.__IR_state = {parts:parts, rSal:rSal, rBnc:rBnc, rDivIR:rDivIR, baseSpouse:baseSpouse, dedCsg:dedCsg, RNI:RNI, res:res, IR:IR, enc:enc, net:net, mode:mode};
-  logIR('calcIR — RNI='+RNI.toFixed(0)+' IR='+IR.toFixed(0)+' net='+net.toFixed(0));
+  safeSetText('netFoyer', fmtEUR(net));
+
+  window.__IR_state = {
+    parts: parts,
+    rSal: rSal,
+    rBnc: rBnc,
+    rDivIR: rDivIR,
+    baseSpouse: baseSpouse,
+    dedCsg: dedCsg,
+    RNI: RNI,
+    res: res,
+    IR: IR,
+    enc: enc,
+    net: net,
+    mode: mainMode,
+    cashPref: cashPref,
+    microAbattementApplied: (mainMode === 'micro')
+  };
 }
+
 function syncIR(){
-  var src=document.getElementById('syncSource').value;
-  if(src==='tns'){
-    document.getElementById('rSal').value=Math.round(0.9*(window.__Rout||0));
-    document.getElementById('rBnc').value=0; document.getElementById('rDivIR').value=0;
-    document.getElementById('cashOpts').value='tns_spouse';
-  }else if(src==='sasu'){
-    document.getElementById('rSal').value=Math.round(0.9*(window.__SASUSalaire||0));
-    document.getElementById('rBnc').value=Math.round(window.__SASUBnc||0); document.getElementById('rDivIR').value=0;
-    document.getElementById('cashOpts').value='sasu_bnc_spouse';
-  }else if(src==='sasuIS'){
-    document.getElementById('rBnc').value=0;
-    var salImp = 0.9*(window.__SISU_SalBrut||0);
-    document.getElementById('rSal').value=Math.round(salImp);
-    document.getElementById('rDivIR').value=Math.round(window.__SISU_DivIRBase||0);
-    document.getElementById('cashOpts').value='sasu_is_spouse';
-  }
-  else if(src === 'micro'){
+  var src = document.getElementById('syncSource').value;
+
+  // on normalise toujours après écriture pour éviter des anciens formats
+  if(src === 'tns'){
+    document.getElementById('rSal').value = Math.round(0.9 * (window.__Rout || 0));
+    document.getElementById('rBnc').value = 0;
+    document.getElementById('rDivIR').value = 0;
+  } else if(src === 'sasu'){
+    document.getElementById('rSal').value = Math.round(0.9 * (window.__SASUSalaire || 0));
+    document.getElementById('rBnc').value = Math.round(window.__SASUBnc || 0);
+    document.getElementById('rDivIR').value = 0;
+  } else if(src === 'sasuIS'){
+    document.getElementById('rBnc').value = 0;
+    var salImp = 0.9 * (window.__SISU_SalBrut || 0);
+    document.getElementById('rSal').value = Math.round(salImp);
+    document.getElementById('rDivIR').value = Math.round(window.__SISU_DivIRBase || 0);
+  } else if(src === 'micro'){
   var micro = window.__MICRO_state || {};
-  // On considère que le revenu imposable est le CA (simplification) : ajuster si nécessaire
-  var ca = micro.ca || 0;
-  document.getElementById('rSal').value = Math.round(0.0); // pas de salaire classique
-  document.getElementById('rBnc').value = Math.round(ca); // assimilé BNC pour foyer
+  document.getElementById('rSal').value = Math.round(0);
+  // micro-BNC : abattement forfaitaire 34 %, on taxe 66 % du CA
+  var baseMicroBnc = 0.66 * (micro.ca || 0);
+  document.getElementById('rBnc').value = Math.round(baseMicroBnc);
   document.getElementById('rDivIR').value = 0;
-  document.getElementById('cashOpts').value = 'micro_spouse';
 }
+ else if(src === 'salarie'){
+    var sal = window.__SALARIE_state || {};
+    var salImp = 0.9 * (sal.brutTotal || 0);
+    document.getElementById('rSal').value = Math.round(salImp);
+    document.getElementById('rBnc').value = 0;
+    document.getElementById('rDivIR').value = 0;
+  }
   calcIR();
 }
+
+
+
+function getNormalizedCashPref(raw){
+  // Carte les anciennes valeurs vers les deux nouveaux cas.
+  // Tout ce qui contient "spouse" ou qui est explicite avec conjoint -> you_plus_spouse
+  // Les variantes "only" ou sans conjoint -> you_only
+  if(!raw) return 'you_plus_spouse'; // défaut
+  raw = raw.toString().toLowerCase();
+  if(raw.includes('only') && !raw.includes('spouse')) return 'you_only';
+  if(raw.includes('you_only')) return 'you_only';
+  if(raw.includes('you_plus_spouse')) return 'you_plus_spouse';
+  // les anciens :
+  if(raw.match(/_spouse$/) || raw.includes('spouse') || raw.includes('sasu_bnc_spouse') || raw.includes('sasu_is_spouse') || raw === 'tns_spouse' || raw === 'micro_spouse'){
+    return 'you_plus_spouse';
+  }
+  return 'you_only';
+}
+
 
 /* TNS */
 function tnsCotisations(R,PASS,includeCsg,CFP){
@@ -584,36 +747,336 @@ function calcMICRO(triggerProj){
 }
 
 
-function buildProjHeader(mode) {
-  const baseTh = [
-    '<th>Année</th>',
-    '<th class="num">PASS</th>',
-    '<th class="num">SMIC h.</th>',
-    '<th>Mode</th>',
-    '<th class="num">CA</th>',
-    '<th class="num">R/Salaire</th>',
-    '<th class="num">BNC</th>',
-    '<th class="num">Div. bruts</th>',
-    '<th class="num">Div. nets</th>',
-    '<th>Mode div.</th>',
-    '<th class="num">Cotis/IS/PS</th>',
-    '<th class="num">RNI foyer</th>',
-    '<th class="num">IR</th>',
-    '<th class="num">Net foyer</th>'
-  ];
-  if (mode === 'micro') {
-    baseTh.push('<th>Warning micro</th>');
+function getSalaireAnnuel(){
+  var mode = document.getElementById('salaireMode').value;
+  var raw = val('salaireBrut');
+  if(mode === 'mensuel'){
+    return raw * 12;
   }
-  document.getElementById('projHeaderRow').innerHTML = baseTh.join('');
+  return raw;
 }
+
+/**
+ * Calcule l’état salarial (brut total, charges, net, super brut) pour une année donnée.
+ * @param {number} salaireBrutAnnuel - base annuelle (fixe + variable non encore appliqué)
+ * @param {number} variablePct - en fraction (0.2 pour 20%)
+ * @param {number} variableFixe - montant fixe
+ * @param {string} statut - 'cadre' ou autre
+ * @param {number} tauxSalarial - en fraction (0.22 pour 22%)
+ * @param {number} tauxPatronal - en fraction
+ * @returns {object} état calculé
+ */
+function getSalaryState(salaireBrutAnnuel, variablePct, variableFixe, statut, tauxSalarial, tauxPatronal){
+  // rémunération totale brute = fixe + variable
+  var variable = salaireBrutAnnuel * variablePct + variableFixe;
+  var brutTotal = salaireBrutAnnuel + variable;
+
+  // taux salarial effectif : si on fournit un taux différent du défaut, on l’utilise
+  var defaultTaux = (statut === 'cadre') ? 0.26 : 0.22;
+  var tauxSal = (tauxSalarial != null && tauxSalarial !== defaultTaux) ? tauxSalarial : defaultTaux;
+
+  // charges salariales et net
+  var chargesSalariales = brutTotal * tauxSal;
+  var netAvantIR = Math.max(0, brutTotal - chargesSalariales);
+
+  // coût employeur (super brut)
+  var chargesPatronales = brutTotal * tauxPatronal;
+  var superBrut = brutTotal * (1 + tauxPatronal);
+
+  return {
+    brutTotal,
+    netAvantIR,
+    chargesSalariales,
+    chargesPatronales,
+    superBrut
+  };
+}
+
+// Décompose les charges salariales & patronales pour salariat en garantissant que
+// les totaux égalent exactement brutTotal * tauxSal / tauxPat.
+// Le découpage en postes est pondéré ici ; tu pourras remplacer les poids par
+// des assiettes/taux réels selon statut cadre/non-cadre.
+function decomposeSalariatDetailed(brutTotal, statut, tauxSal, tauxPat) {
+  const totalSalarie = brutTotal * tauxSal;
+  const totalEmployeur = brutTotal * tauxPat;
+
+  // Taux indicatifs par poste : tu peux remplacer par les taux officiels ensuite.
+  // Ici ce sont des poids relatifs pour répartition initiale.
+  const salariePosts = [
+    { key: 'retraite_base', label: 'Retraite de base', weight: 0.35 },
+    { key: 'retraite_compl', label: statut === 'cadre' ? 'Retraite complémentaire AGIRC-ARRCO (cadre)' : 'Retraite complémentaire AGIRC-ARRCO (non-cadre)', weight: 0.25 },
+    { key: 'maladie', label: 'Assurance maladie', weight: 0.20 },
+    { key: 'csg_crds', label: 'CSG / CRDS', weight: 0.20 }
+  ];
+
+  const employeurPosts = [
+    { key: 'retraite_base', label: 'Retraite de base', weight: 0.30 },
+    { key: 'retraite_compl', label: statut === 'cadre' ? 'Retraite complémentaire AGIRC-ARRCO (cadre)' : 'Retraite complémentaire AGIRC-ARRCO (non-cadre)', weight: 0.20 },
+    { key: 'maladie', label: 'Assurance maladie', weight: 0.15 },
+    { key: 'allocations_familiales', label: 'Allocations familiales', weight: 0.20 },
+    { key: 'autres', label: 'Autres contributions patronales', weight: 0.15 }
+  ];
+
+  // Sommes de poids
+  const sumSalWeights = salariePosts.reduce((s,p) => s + p.weight, 0);
+  const sumEmpWeights = employeurPosts.reduce((s,p) => s + p.weight, 0);
+
+  // Première répartition (float)
+  const parts = {};
+  salariePosts.forEach(p => {
+    parts[p.key] = {
+      label: p.label,
+      salarie: totalSalarie * (p.weight / sumSalWeights),
+      employeur: 0
+    };
+  });
+  employeurPosts.forEach(p => {
+    const key = 'pat_' + p.key;
+    parts[key] = {
+      label: p.label,
+      salarie: 0,
+      employeur: totalEmployeur * (p.weight / sumEmpWeights)
+    };
+  });
+
+  // Calcul des sous-totaux pour voir dérive d'arrondi
+  const salarieSumCalc = Object.values(parts).reduce((s,it) => s + (it.salarie || 0), 0);
+  const employeurSumCalc = Object.values(parts).reduce((s,it) => s + (it.employeur || 0), 0);
+
+  // Ajustement de rattrapage : on colle la différence sur une ligne “Ajustement” pour garder traçabilité
+  const deltaSalarie = totalSalarie - salarieSumCalc;
+  const deltaEmployeur = totalEmployeur - employeurSumCalc;
+  if (Math.abs(deltaSalarie) > 1e-6) {
+    parts['ajust_salarie'] = {
+      label: 'Ajustement salarial',
+      salarie: deltaSalarie,
+      employeur: 0
+    };
+  }
+  if (Math.abs(deltaEmployeur) > 1e-6) {
+    parts['ajust_employeur'] = {
+      label: 'Ajustement employeur',
+      salarie: 0,
+      employeur: deltaEmployeur
+    };
+  }
+
+  // Totaux forcés (pour affichage cohérent)
+  parts.total = {
+    label: 'Total',
+    salarie: totalSalarie,
+    employeur: totalEmployeur
+  };
+
+  return parts; // objet clé -> { label, salarie, employeur }
+}
+
+
+
+
+function calcSALARIE(triggerProj){
+  const salaireBrut = getSalaireAnnuel();
+  const variablePct = val('variablePct') / 100;
+  const variableFixe = val('variableFixe');
+  const variable = salaireBrut * variablePct + variableFixe;
+  const brutTotal = salaireBrut + variable;
+
+  const statut = document.getElementById('statutSal').value;
+  const defaultTaux = (statut === 'cadre') ? 0.26 : 0.22;
+  const tauxSalInput = val('tauxSalarial') / 100;
+  const tauxSal = tauxSalInput !== defaultTaux ? tauxSalInput : defaultTaux;
+
+  const tauxPat = val('tauxPatronal') / 100;
+
+  const chargesSalariales = brutTotal * tauxSal;
+  const netAvantIR = Math.max(0, brutTotal - chargesSalariales);
+  const chargesPatronales = brutTotal * tauxPat;
+  const superBrut = brutTotal * (1 + tauxPat);
+
+  // État global
+  window.__SALARIE_state = {
+    brutTotal,
+    netAvantIR,
+    chargesSalariales,
+    chargesPatronales,
+    superBrut
+  };
+
+  // KPI
+  safeSetText('salBrutKpi', fmtEUR(brutTotal));
+  safeSetText('salChargesSalariales', fmtEUR(chargesSalariales));
+  safeSetText('salChargesPatronales', fmtEUR(chargesPatronales));
+  safeSetText('salSuperBrut', fmtEUR(superBrut));
+  safeSetText('salNet', fmtEUR(netAvantIR));
+
+  if (document.getElementById('modeSel').value === 'salarie'){
+    document.getElementById('syncSource').value = 'salarie';
+    document.getElementById('cashOpts').value = 'salarie_only';
+    syncIR();
+  }
+
+  if (triggerProj) projectYears();
+  log('calcSALARIE — brutTotal=' + Math.round(brutTotal));
+
+  // Décomposition
+  const decomposition = decomposeSalariatDetailed(brutTotal, statut, tauxSal, tauxPat);
+
+  /* ------------------------------------------------------------------
+     Construction du tableau : 1 ligne par poste, combinant part sal. 
+     et part employeur (plus de doublons).
+  ------------------------------------------------------------------ */
+  const bases = [
+    'retraite_base',
+    'retraite_compl',
+    'maladie',
+    'csg_crds',
+    'allocations_familiales',
+    'autres'
+  ];
+
+  const detailRows = [];
+  const brut = brutTotal;
+
+  bases.forEach(key => {
+    const salPart = decomposition[key]?.salarie || 0;
+    const empPart = decomposition['pat_' + key]?.employeur || 0;
+    if (salPart === 0 && empPart === 0) return;          // rien à afficher
+
+    const pctSal = brut ? (salPart / brut) * 100 : 0;
+    const pctEmp = brut ? (empPart / brut) * 100 : 0;
+
+    detailRows.push(`
+      <tr>
+        <td>${decomposition[key]?.label || decomposition['pat_' + key]?.label}</td>
+        <td class="num">${pctSal.toFixed(1).replace('.',',')} %</td>
+        <td class="num">${fmtEUR(salPart)}</td>
+        <td class="num">${pctEmp.toFixed(1).replace('.',',')} %</td>
+        <td class="num">${fmtEUR(empPart)}</td>
+      </tr>
+    `);
+  });
+
+
+  const detailTableBody = document.querySelector('#tblSalariatDetail tbody');
+  if (detailTableBody) {
+    console.assert(detailTableBody, 'tbody #tblSalariatDetail introuvable');
+    detailTableBody.innerHTML = detailRows.join('');
+
+    // footer
+    const totalSalarie = decomposition.total?.salarie || 0;
+    const totalEmployeur = decomposition.total?.employeur || 0;
+    const pctSal = brut > 0 ? (totalSalarie / brut) * 100 : 0;
+    const pctEmp = brut > 0 ? (totalEmployeur / brut) * 100 : 0;
+    document.getElementById('total-sal-pct').textContent = pctSal.toFixed(1).replace('.',',') + ' %';
+    document.getElementById('total-sal-mt').textContent = fmtEUR(totalSalarie);
+    document.getElementById('total-emp-pct').textContent = pctEmp.toFixed(1).replace('.',',') + ' %';
+    document.getElementById('total-emp-mt').textContent = fmtEUR(totalEmployeur);
+  } else {
+    // fallback ancien
+    document.getElementById('tblSalariat').innerHTML = detailRows.join('');
+  }
+}
+
+
+
+function buildProjHeader(mode) {
+  let ths;
+  if (mode === 'salarie') {
+    ths = [
+      '<th>Année</th>',
+      '<th class="num">PASS</th>',
+      '<th class="num">SMIC h.</th>',
+      '<th>Mode</th>',
+      '<th class="num">Salaire brut</th>',
+      '<th class="num">Super brut</th>',
+      '<th class="num">Charges salariales</th>',
+      '<th class="num">Net avant IR</th>',
+      '<th class="num">Cotis. patronales</th>',
+      '<th class="num">RNI foyer</th>',
+      '<th class="num">IR</th>',
+      '<th class="num">Net foyer</th>'
+    ];
+  } else {
+    ths = [
+      '<th>Année</th>',
+      '<th class="num">PASS</th>',
+      '<th class="num">SMIC h.</th>',
+      '<th>Mode</th>',
+      '<th class="num">CA</th>',
+      '<th class="num">R/Salaire</th>',
+      '<th class="num">BNC</th>',
+      '<th class="num">Div. bruts</th>',
+      '<th class="num">Div. nets</th>',
+      '<th>Mode div.</th>',
+      '<th class="num">Cotis/IS/PS</th>',
+      '<th class="num">RNI foyer</th>',
+      '<th class="num">IR</th>',
+      '<th class="num">Net foyer</th>'
+    ];
+    if (mode === 'micro') ths.push('<th>Warning micro</th>');
+  }
+  // écrase systématiquement
+  document.getElementById('projHeaderRow').innerHTML = ths.join('');
+}
+
+
+function buildSummaryFooter(mode, sums, n){
+  const tfoot = document.getElementById('projFooter');
+  if (!tfoot) return;
+  tfoot.innerHTML = ''; // reset
+
+  const tr = document.createElement('tr');
+  tr.className = 'summary';
+
+  if (mode === 'salarie') {
+    tr.innerHTML = `
+      <td>Total / Moyenne</td>
+      <td class="num">–</td>
+      <td class="num">–</td>
+      <td></td>
+      <td class="num">${fmtEUR(sums.sumR)}</td>
+      <td class="num">–</td>
+      <td class="num">–</td>
+      <td class="num">–</td>
+      <td class="num">${fmtEUR(sums.sumCot)}</td>
+      <td class="num">${fmtEUR(sums.sumRNI)}</td>
+      <td class="num">${fmtEUR(sums.sumIR)}</td>
+      <td class="num">${fmtEUR(sums.sumNet)}</td>
+    `;
+  } else {
+    const extra = (mode === 'micro') ? '<td></td>' : '';
+    tr.innerHTML = `
+      <td>Total / Moyenne</td>
+      <td class="num">–</td>
+      <td class="num">–</td>
+      <td></td>
+      <td class="num">${fmtEUR(sums.sumCA)}</td>
+      <td class="num">${fmtEUR(sums.sumR)}</td>
+      <td class="num">${fmtEUR(sums.sumB)}</td>
+      <td class="num">${fmtEUR(sums.sumDivB)}</td>
+      <td class="num">${fmtEUR(sums.sumDivN)}</td>
+      <td></td>
+      <td class="num">${fmtEUR(sums.sumCot)}</td>
+      <td class="num">${fmtEUR(sums.sumRNI)}</td>
+      <td class="num">${fmtEUR(sums.sumIR)}</td>
+      <td class="num">${fmtEUR(sums.sumNet)}</td>
+      ${extra}
+    `;
+  }
+
+  tfoot.appendChild(tr);
+}
+
 
 
 /* PROJECTION */
 function projectYears(){
-  // Ensure year-1 states are up-to-date for consistency
   var mode = document.getElementById('modeSel').value;
   buildProjHeader(mode);
-  if(mode==='tns'){ mainCalc(false); } else if(mode==='sasuIR'){ calcSASU(false); } else { calcSISU(false); }
+  if(mode==='tns'){ mainCalc(false); }
+  else if(mode==='sasuIR'){ calcSASU(false); }
+  else if(mode==='salarie'){ calcSALARIE(false); }
+  else { calcSISU(false); }
   calcIR();
 
   var y0 = Math.round(val('startYear')||2025);
@@ -625,29 +1088,43 @@ function projectYears(){
   var smic0 = val('smicHour')||11.65;
   var gSmic = (document.getElementById('smicGrow')? val('smicGrow')/100 : 0.02);
 
-  var spouseCA0 = val('caSpouse')*12; var gSp = val('growth')/100;
+  var spouseCA0 = val('caSpouse')*12;
+  var gSp = val('growth')/100;
 
   var tbody = document.getElementById('tblProj'); tbody.innerHTML='';
   var sumCA=0,sumR=0,sumB=0,sumDivB=0,sumDivN=0,sumCot=0,sumRNI=0,sumIR=0,sumNet=0;
 
-  var PASS = pass0; var SMIC = smic0;
+  var PASS = pass0;
+  var SMIC = smic0;
 
+  // TNS / SASU-IS base inputs
   var CA = (mode==='tns'? val('ca') : (mode==='sasuIS'? val('sisuCA') : 0));
   var gCA = (mode==='tns'? val('caGrow')/100 : (mode==='sasuIS'? val('sisuCAGrow')/100 : 0));
-  var chargesPct = (mode==='tns'? val('chargesPct') : (mode==='sasuIS'? val('sisuChargesPct') : 0));
+  var chargesPct = (mode==='tns'? val('chargesPct') : (mode==='sasuIS'? val('sisuChargesPct')/100*100 : 0)); // attention format
   var chargesFix0 = (mode==='tns'? val('chargesFixes') : (mode==='sasuIS'? val('sisuChargesFix') : 0));
   var CFP = Math.max(0,val('cfp'));
   var includeCsg = (document.getElementById('includeCsg').value==='1');
 
-  var sal0IR = val('sasuSalaire'); var gSalIR = val('sasuSalaireGrow')/100;
-  var bnc0 = val('sasuBnc'); var gBnc = val('sasuBncGrow')/100;
+  // SASU-IR
+  var sal0IR = val('sasuSalaire');
+  var gSalIR = val('sasuSalaireGrow')/100;
+  var bnc0 = val('sasuBnc');
+  var gBnc = val('sasuBncGrow')/100;
   var ps = Math.max(0, parseFloat(document.getElementById('psRate').value)||0.097);
 
+  // SASU-IS
   var salModeIS = (document.getElementById('sisuSalaryMode')? document.getElementById('sisuSalaryMode').value : 'manual');
   var sal0IS = val('sisuSalaire');
   var rateSal=val('rateSal')/100, ratePat=val('ratePat')/100;
-  var isRedThr=val('isRedThr'); var isRate=val('isRate')/100;
-  var distRate=val('distRate')/100; var divMode=(document.getElementById('divMode')? document.getElementById('divMode').value : 'pfu');
+  var isRedThr=val('isRedThr');
+  var isRate=val('isRate')/100;
+  var distRate=val('distRate')/100;
+  var divMode=(document.getElementById('divMode')? document.getElementById('divMode').value : 'pfu');
+
+  // Salariat base + croissance
+  var sal0 = val('salaireBrut');
+  var gSal = val('salaireGrow')/100; // suppose nouvel input
+  // statut / taux dynamiques seront lus chaque année
 
   for(var k=0;k<n;k++){
     var year = y0 + k;
@@ -655,61 +1132,80 @@ function projectYears(){
       PASS = PASS * (1+gPass);
       SMIC = SMIC * (1+gSmic);
       CA = CA * (1+gCA);
-      chargesFix0 = chargesFix0; // constant
       sal0IR = sal0IR * (1+gSalIR);
       bnc0 = bnc0 * (1+gBnc);
+      sal0 = sal0 * (1+gSal);
     }
+
     var spouseCA = spouseCA0 * Math.pow(1+gSp, k);
-    var parts = Math.max(1,val('parts'));
+    var parts = Math.max(1, val('parts'));
     var indexBar = infl * k;
 
+    // cashOpts / conjoint
+    var rawCashPref = document.getElementById('cashOpts').value;
+    var cashPref = getNormalizedCashPref(rawCashPref);
+    var includeSpouse = (cashPref === 'you_plus_spouse');
+    var baseSpouse = includeSpouse ? 0.66 * spouseCA : 0;
+
     if(mode==='tns'){
-      var res=solveRForFullRemu(CA,chargesPct,chargesFix0,PASS,includeCsg,CFP);
-      var R=res.R; var cot=res.cot; var cotTot=cot.cotSansCSG + (includeCsg?cot.csg:0);
-      var rSal = 0.9 * R; var baseSpouse = 0.66*spouseCA; var dedCsg = (document.getElementById('deductCsg').value==='1') ? 0.068*cot.A : 0;
+      var res = solveRForFullRemu(CA, val('chargesPct'), chargesFix0, PASS, includeCsg, CFP);
+      var R = res.R;
+      var cot = res.cot;
+      var cotTot = cot.cotSansCSG + (includeCsg ? cot.csg : 0);
+      var rSal = 0.9 * R;
+      var dedCsg = (document.getElementById('deductCsg').value==='1') ? 0.068 * cot.A : 0;
       var RNI = Math.max(0, rSal + baseSpouse - dedCsg);
-      var irRes = computeTaxFromBareme(RNI/parts, indexBar); var IR = irRes.tax * parts;
-      var enc = R + spouseCA; var net = enc - IR;
+      var irRes = computeTaxFromBareme(RNI / parts, indexBar);
+      var IR = irRes.tax * parts;
+      var enc = R + (includeSpouse ? spouseCA : 0);
+      var net = enc - IR;
+
       var tr='<tr><td>'+year+'</td><td class="num">'+fmtEUR(PASS)+'</td><td class="num">'+fmtEUR(SMIC)+'</td><td>TNS</td>'+
         '<td class="num">'+fmtEUR(CA)+'</td><td class="num">'+fmtEUR(R)+'</td><td class="num">–</td>'+
         '<td class="num">–</td><td class="num">–</td><td>–</td>'+
         '<td class="num">'+fmtEUR(cotTot)+'</td><td class="num">'+fmtEUR(RNI)+'</td><td class="num">'+fmtEUR(IR)+'</td><td class="num">'+fmtEUR(net)+'</td></tr>';
       tbody.innerHTML += tr;
       sumCA+=CA; sumR+=R; sumCot+=cotTot; sumRNI+=RNI; sumIR+=IR; sumNet+=net;
-    }else if(mode==='sasuIR'){
-      var salaire = sal0IR; var bnc = bnc0;
-      var salImp = 0.9*salaire; var psDue=ps*bnc;
-      var baseSpouse = 0.66*spouseCA;
+
+    } else if(mode==='sasuIR'){
+      var salaire = sal0IR;
+      var bnc = bnc0;
+      var salImp = 0.9 * salaire;
+      var psDue = ps * bnc;
       var RNI2 = salImp + bnc + baseSpouse;
-      var irRes2 = computeTaxFromBareme(RNI2/parts, indexBar); var IR2 = irRes2.tax * parts;
-      var enc2 = salaire + bnc + spouseCA; var net2 = enc2 - IR2;
+      var irRes2 = computeTaxFromBareme(RNI2 / parts, indexBar);
+      var IR2 = irRes2.tax * parts;
+      var enc2 = salaire + bnc + (includeSpouse ? spouseCA : 0);
+      var net2 = enc2 - IR2;
+
       var tr2='<tr><td>'+year+'</td><td class="num">'+fmtEUR(PASS)+'</td><td class="num">'+fmtEUR(SMIC)+'</td><td>SASU-IR</td>'+
         '<td class="num">–</td><td class="num">'+fmtEUR(salaire)+'</td><td class="num">'+fmtEUR(bnc)+'</td>'+
         '<td class="num">–</td><td class="num">–</td><td>–</td>'+
         '<td class="num">'+fmtEUR(psDue)+'</td><td class="num">'+fmtEUR(RNI2)+'</td><td class="num">'+fmtEUR(IR2)+'</td><td class="num">'+fmtEUR(net2)+'</td></tr>';
       tbody.innerHTML += tr2;
       sumR+=salaire; sumB+=bnc; sumCot+=psDue; sumRNI+=RNI2; sumIR+=IR2; sumNet+=net2;
-    } else if (mode === 'micro') {
-      var microState = window.__MICRO_state || {};
-      var ca = (k === 0 ? microState.ca : ca * (1 + microState.grow));
-      var activity = microState.activity || 'service';
-      var threshold = MICRO_THRESHOLDS[activity];
-      var parts = Math.max(1, val('parts'));
-      var indexBar = infl * k;
-      var baseSpouse = 0.66 * spouseCA;
 
-      var RNI = Math.max(0, ca + baseSpouse);
+    } else if(mode==='micro'){
+      var microState = window.__MICRO_state || {};
+      // gérer correctement la CA micro avec sa propre croissance
+      var prevCA = (k === 0) ? microState.ca : (window.__MICRO_projection && window.__MICRO_projection.caHistory ? window.__MICRO_projection.caHistory[k-1] : microState.ca);
+      var caYear = prevCA * (k === 0 ? 1 : (1 + (microState.grow || 0)));
+      if (!window.__MICRO_projection) window.__MICRO_projection = { exceedHistory: [], caHistory: [] };
+      window.__MICRO_projection.caHistory[k] = caYear;
+
+      var exceeds = caYear > (microState.threshold || MICRO_THRESHOLDS.service);
+
+      var RNI = Math.max(0, caYear + (includeSpouse ? baseSpouse : 0));
       var irRes = computeTaxFromBareme(RNI / parts, indexBar);
       var IR = irRes.tax * parts;
-      var enc = ca + spouseCA;
+      var enc = caYear + (includeSpouse ? spouseCA : 0);
       var net = enc - IR;
 
-      // Historique de dépassement pour détecter trois années consécutives
+      // historique dépassement (comme précédemment)
       if (!window.__MICRO_projection) { window.__MICRO_projection = { exceedHistory: [] }; }
-      var prevExceed = ca > threshold;
+      var prevExceed = exceeds;
       window.__MICRO_projection.exceedHistory[k] = prevExceed;
 
-      // Bloquer seulement si on a dépassé 3 années d’affilée
       var blocked = false;
       if (
         k >= 2 &&
@@ -720,10 +1216,7 @@ function projectYears(){
         blocked = true;
       }
 
-      // Classe visuelle si blocage
       var extraClass = blocked ? ' class="proj-blocked"' : '';
-
-      // Construire warningText
       var warningText = '';
       if (blocked) {
         warningText = '❌ Trois dépassements consécutifs : sortie du régime micro.';
@@ -738,13 +1231,12 @@ function projectYears(){
         warningText = '✅ Sous le seuil.';
       }
 
-      // Ligne avec warning dans une colonne dédiée
       var tr = '<tr' + extraClass + '>' +
         '<td>' + year + '</td>' +
         '<td class="num">' + fmtEUR(PASS) + '</td>' +
         '<td class="num">' + fmtEUR(SMIC) + '</td>' +
         '<td>Micro-entreprise</td>' +
-        '<td class="num">' + fmtEUR(ca) + '</td>' +
+        '<td class="num">' + fmtEUR(caYear) + '</td>' +
         '<td class="num">–</td>' +
         '<td class="num">–</td>' +
         '<td class="num">–</td>' +
@@ -757,17 +1249,62 @@ function projectYears(){
         '<td>' + warningText + '</td>' +
         '</tr>';
       tbody.innerHTML += tr;
+      sumCA += caYear; sumCot += 0; sumRNI += RNI; sumIR += IR; sumNet += net;
 
-      // Totaux
-      sumCA += ca; sumCot += 0; sumRNI += RNI; sumIR += IR; sumNet += net;
-    }
-    else{
-      var salBrut = (salModeIS==='min4q') ? (600*SMIC) : sal0IS;
-      var coutEmp = salBrut*(1+ratePat); var salNet = salBrut*(1-rateSal);
-      var marge = CA*(1 - chargesPct/100) - chargesFix0;
+    } else if(mode==='salarie'){
+      // reconstruire dynamiquement l'état salarial avec croissance
+      var statut = document.getElementById('statutSal').value;
+      var tauxSalarialVal = val('tauxSalarial') / 100;
+      var tauxPatronalVal = val('tauxPatronal') / 100;
+      var salaireBaseAnnuel = sal0 * Math.pow(1+gSal, k);
+      var variablePct = val('variablePct') / 100;
+      var variableFixe = val('variableFixe');
+      var dynamicSalState = getSalaryState(salaireBaseAnnuel, variablePct, variableFixe, statut, tauxSalarialVal, tauxPatronalVal);
+
+      var brutTotal = dynamicSalState.brutTotal;
+      var netAvantIR = dynamicSalState.netAvantIR;
+      var chargesSalariales = dynamicSalState.chargesSalariales;
+      var chargesPatronalesDyn = dynamicSalState.chargesPatronales;
+      var superBrut = dynamicSalState.superBrut;
+
+      var salImp = 0.9 * brutTotal;
+      var RNI = Math.max(0, salImp + (includeSpouse ? baseSpouse : 0));
+      var irRes = computeTaxFromBareme(RNI / parts, indexBar);
+      var IR = irRes.tax * parts;
+
+      var enc = netAvantIR + (includeSpouse ? spouseCA : 0);
+      var net = enc - IR;
+
+      var tr = '<tr class="salary-highlight">' +
+            '<td>' + year + '</td>' +
+            '<td class="num">' + fmtEUR(PASS) + '</td>' +
+            '<td class="num">' + fmtEUR(SMIC) + '</td>' +
+            '<td>Salariat</td>' +
+            '<td class="num">' + fmtEUR(brutTotal) + '</td>' +             // Salaire brut
+            '<td class="num">' + fmtEUR(superBrut) + '</td>' +            // Super brut
+            '<td class="num">' + fmtEUR(chargesSalariales) + '</td>' +    // Charges salariales
+            '<td class="num">' + fmtEUR(netAvantIR) + '</td>' +           // Net avant IR
+            '<td class="num">' + fmtEUR(chargesPatronalesDyn) + '</td>' + // Cotis. patronales
+            '<td class="num">' + fmtEUR(RNI) + '</td>' +                 // RNI foyer
+            '<td class="num">' + fmtEUR(IR) + '</td>' +                  // IR
+            '<td class="num">' + fmtEUR(net) + '</td>' +                 // Net foyer
+            '</tr>';
+      tbody.innerHTML += tr;
+
+      sumR += brutTotal;
+      sumCot += chargesPatronalesDyn;
+      sumRNI += RNI;
+      sumIR += IR;
+      sumNet += net;
+
+    } else { // SASU-IS fallback
+      var salBrut = (salModeIS==='min4q') ? (600 * SMIC) : sal0IS;
+      var coutEmp = salBrut * (1+ratePat);
+      var salNet = salBrut * (1-rateSal);
+      var marge = CA * (1 - val('sisuChargesPct')/100) - val('sisuChargesFix');
       var resImp = Math.max(0, marge - coutEmp);
-      var isRed = Math.min(resImp, Math.max(0,isRedThr))*0.15;
-      var isNorm = Math.max(0, resImp - Math.max(0,isRedThr)) * isRate;
+      var isRed = Math.min(resImp, Math.max(0, isRedThr)) * 0.15;
+      var isNorm = Math.max(0, resImp - Math.max(0, isRedThr)) * isRate;
       var isTot = isRed + isNorm;
       var apIS = Math.max(0, resImp - isTot);
       var divBrut = apIS * distRate;
@@ -776,14 +1313,13 @@ function projectYears(){
       var divNetPFU = divBrut - psDiv - irPFU;
       var divIRBase = 0.6 * divBrut;
       var divNetBareme = divBrut - psDiv;
-      var baseSpouse = 0.66*spouseCA;
-      var salImp = 0.9*salBrut;
-      var RNI = salImp + baseSpouse + (divMode==='bareme'? divIRBase : 0);
-      var irRes = computeTaxFromBareme(RNI/parts, indexBar); var IR = irRes.tax * parts;
+      var RNI = 0.9 * salBrut + (includeSpouse ? baseSpouse : 0) + (divMode==='bareme'? divIRBase : 0);
+      var irRes = computeTaxFromBareme(RNI / parts, indexBar);
+      var IR = irRes.tax * parts;
       var divNet = (divMode==='pfu'? divNetPFU : divNetBareme);
-      var enc = salNet + divNet + spouseCA;
+      var enc = salNet + divNet + (includeSpouse ? spouseCA : 0);
       var net = enc - IR;
-      var cotLike = (salBrut*ratePat) + psDiv + (divMode==='pfu'? irPFU : 0) + isTot; // charge pat + PS + (IR PFU) + IS
+      var cotLike = (salBrut * ratePat) + psDiv + (divMode==='pfu'? irPFU : 0) + isTot;
       var tr3='<tr><td>'+year+'</td><td class="num">'+fmtEUR(PASS)+'</td><td class="num">'+fmtEUR(SMIC)+'</td><td>SASU-IS</td>'+
         '<td class="num">'+fmtEUR(CA)+'</td><td class="num">'+fmtEUR(salBrut)+'</td><td class="num">–</td>'+
         '<td class="num">'+fmtEUR(divBrut)+'</td><td class="num">'+fmtEUR(divNet)+'</td><td>'+(divMode==='pfu'?'PFU':'Barème')+'</td>'+
@@ -792,16 +1328,23 @@ function projectYears(){
       sumCA+=CA; sumR+=salBrut; sumDivB+=divBrut; sumDivN+=divNet; sumCot+=cotLike; sumRNI+=RNI; sumIR+=IR; sumNet+=net;
     }
   }
-  document.getElementById('pCA').textContent = fmtEUR(sumCA);
-  document.getElementById('pR').textContent = fmtEUR(sumR);
-  document.getElementById('pBNC').textContent = fmtEUR(sumB);
-  document.getElementById('pDivB').textContent = fmtEUR(sumDivB);
-  document.getElementById('pDivN').textContent = fmtEUR(sumDivN);
-  document.getElementById('pCot').textContent = fmtEUR(sumCot);
-  document.getElementById('pRNI').textContent = fmtEUR(sumRNI);
-  document.getElementById('pIR').textContent = fmtEUR(sumIR);
-  document.getElementById('pNet').textContent = fmtEUR(sumNet);
+    // rebuild summary/footer row proprement alignée
+  buildSummaryFooter(mode, {
+    sumCA, sumR, sumB, sumDivB, sumDivN, sumCot, sumRNI, sumIR, sumNet
+  }, n);
+
+  safeSetText('pCA', fmtEUR(sumCA));
+  safeSetText('pR', fmtEUR(sumR));
+  safeSetText('pBNC', fmtEUR(sumB));
+  safeSetText('pDivB', fmtEUR(sumDivB));
+  safeSetText('pDivN', fmtEUR(sumDivN));
+  safeSetText('pCot', fmtEUR(sumCot));
+  safeSetText('pRNI', fmtEUR(sumRNI));
+  safeSetText('pIR', fmtEUR(sumIR));
+  safeSetText('pNet', fmtEUR(sumNet));
+
 }
+
 
 function resetMICRO(){
   document.getElementById('microCA').value = 70000;
@@ -810,6 +1353,21 @@ function resetMICRO(){
   calcMICRO(true);
 }
 
+function resetSALARIE(){
+  document.getElementById('salaireBrut').value = 50000;
+  document.getElementById('salaireMode').value = 'annuel';
+  document.getElementById('variablePct').value = 0;
+  document.getElementById('variableFixe').value = 0;
+  document.getElementById('tauxSalarial').value = 22;
+  document.getElementById('tauxPatronal').value = 42;
+  calcSALARIE(true);
+}
+
+
+function getTauxSalarialParDefaut(){
+  var statut = document.getElementById('statutSal').value;
+  return (statut === 'cadre') ? 0.26 : 0.22; // 26% cadre, 22% non-cadre (approx)
+}
 
 /* EXPORT CSV */
 function toCsvNumber(n, locale){ 
@@ -943,7 +1501,7 @@ function exportCSV(){
 
 /* Init */
 function updateAll(){ calcSASU(false); mainCalc(false); calcSISU(false); syncIR(); projectYears() }
-(function(){ updateAll(); showNote('howto'); })();
+// (function(){ updateAll(); showNote('howto'); })();
 
 function detectMobileView() {
   if (window.innerWidth <= 840) {
@@ -954,6 +1512,12 @@ function detectMobileView() {
 }
 window.addEventListener('resize', detectMobileView);
 detectMobileView(); // initial
+
+// quand on change "Vous seul" vs "Vous + conjoint", il faut rafraîchir l'IR
+document.getElementById('cashOpts')?.addEventListener('change', function(){
+  // ne pas écraser syncSource ici, il reste ce qu'il est
+  calcIR();
+});
 
 function toggleViewMode(mode){
   const root = document.documentElement;
@@ -1018,6 +1582,37 @@ function updateYears(){
   calcIR();
   projectYears();
 }
+
+
+function ensureConsole(id) {
+  var c = document.getElementById(id);
+  if (!c) {
+    c = document.createElement('pre');
+    c.id = id;
+    c.style.maxHeight = '200px';
+    c.style.overflow = 'auto';
+    c.style.background = '#111';
+    c.style.color = '#eee';
+    c.style.padding = '6px';
+    c.style.fontSize = '12px';
+    // tu peux l'insérer dans un container existant si tu en as un ; ici on le met en fin de body
+    document.body.appendChild(c);
+  }
+  return c;
+}
+function log(msg){
+  var c = ensureConsole('console');
+  var t = new Date().toLocaleTimeString('fr-FR');
+  c.textContent += '['+t+'] '+msg+'\n';
+  c.scrollTop = c.scrollHeight;
+}
+function logIR(msg){
+  var c = ensureConsole('consoleIR');
+  var t = new Date().toLocaleTimeString('fr-FR');
+  c.textContent += '['+t+'] '+msg+'\n';
+  c.scrollTop = c.scrollHeight;
+}
+
 
 
 // à la fin de script.js

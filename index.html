@@ -1,22 +1,20 @@
-/*
+<!-- /*
  * Copyright © 2025 Jérémy Lezmy.
  * Usage non commercial uniquement. Pour une utilisation commerciale,
- * contactez jeremy.lezmy@phusis.io pour obtenir une licence.
- */
-
-
+ * contactez jeremy.lezmy-robert@hotmail.fr pour obtenir une licence.
+ */ -->
 <!DOCTYPE html>
 <html lang="fr" data-theme="auto">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Simulateur TNS & IR – CA → R (France) • v1.3</title>
+  <title>Simulateur TNS & IR – CA → R (France) • v1.4</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <div class="topbar" id="topbar">
     <div class="container">
-      <div style="font-weight:700">Simulateur TNS & IR • v1.3</div>
+      <div style="font-weight:700">Simulateur TNS & IR • v1.4</div>
       <div class="actions">
         <div class="pill">
           <label for="modeSel">Mode rémunération</label>
@@ -25,6 +23,7 @@
             <option value="sasuIR">SASU à l’IR (transparence)</option>
             <option value="sasuIS">SASU à l’IS (salaire + dividendes)</option>
             <option value="micro">Micro-entreprise</option>
+            <option value="salarie">Salariat</option>
           </select>
         </div>
         <div class="pill">
@@ -296,6 +295,114 @@
       <div id="microWarningDetail" class="hint" style="margin-top:6px;"></div>
     </section>
 
+    <section class="card span-12" id="blocSALARIE" style="display:none">
+      <h2>Salariat</h2>
+      <div class="row">
+        <div>
+          <label for="salaireBrut">Salaire brut annuel (€)</label>
+          <input id="salaireBrut" type="number" value="50000" oninput="calcSALARIE(true)">
+        </div>
+        <div>
+          <label for="salaireMode">Mode de saisie</label>
+          <select id="salaireMode" onchange="updateSalaireHelper()">
+            <option value="annuel" selected>Brut annuel</option>
+            <option value="mensuel">Brut mensuel ×12</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label for="variablePct">Variable (% du brut)</label>
+          <input id="variablePct" type="number" value="0" step="0.1">
+        </div>
+        <div>
+          <label for="variableFixe">Variable fixe annuelle (€)</label>
+          <input id="variableFixe" type="number" value="0">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label for="tauxSalarial">Cotisations salariales (%)</label>
+          <input id="tauxSalarial" type="number" value="22">
+          <div class="hint">Taux moyen assimilé salarié (modifiable).</div>
+        </div>
+        <div>
+          <label for="tauxPatronal">Cotisations patronales (%)</label>
+          <input id="tauxPatronal" type="number" value="42">
+          <div class="hint">Coût employeur moyen (modifiable).</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:end;margin-top:6px">
+        <button type="button" class="btn" onclick="calcSALARIE(true)">Calculer (Salariat année 1)</button>
+        <button class="btn btn-reset subtle" onclick="resetSALARIE()">Réinit. Salariat</button>
+      </div>
+      <div>
+        <label for="statutSal">Statut</label>
+        <select id="statutSal" onchange="calcSALARIE(true)">
+          <option value="noncadre" selected>Non-cadre</option>
+          <option value="cadre">Cadre</option>
+        </select>
+      </div>
+      <div class="kpi" style="margin-top:12px">
+        <div class="box">
+          <div class="label">Salaire brut retenu</div>
+          <div class="value" id="salBrutKpi">–</div>
+        </div>
+        <div class="box">
+          <div class="label">Charges salariales</div>
+          <div class="value" id="salChargesSalariales">–</div>
+        </div>
+        <div class="box">
+          <div class="label">Charges patronales</div>
+          <div class="value" id="salChargesPatronales">–</div>
+        </div>
+        <div class="box">
+          <div class="label">Super brut (coût employeur)</div>
+          <div class="value" id="salSuperBrut">–</div>
+        </div>
+        <div class="box">
+          <div class="label">Net dirigeant (avant IR)</div>
+          <div class="value" id="salNet">–</div>
+        </div>
+        </div>
+        <h3>Détail des cotisations (salarié / employeur)</h3>
+        <div class="table-wrapper">
+        <table id="tblSalariatDetail" class="detail-cotisations">
+          <colgroup>
+            <col style="width:40%">
+            <col style="width:10%">
+            <col style="width:15%">
+            <col style="width:10%">
+            <col style="width:15%">
+          </colgroup>
+
+          <!-- NOUVEL EN‑TÊTE -->
+          <thead>
+            <tr>
+              <th>Poste</th>
+              <th class="num">% sal.</th>
+              <th class="num">€ sal.</th>
+              <th class="num">% pat.</th>
+              <th class="num">€ pat.</th>
+            </tr>
+          </thead>
+          <tbody><!-- injecté par JS --></tbody>
+          <tfoot>
+            <tr class="summary">
+              <td>Total</td>
+              <td class="num" id="total-sal-pct">–</td>
+              <td class="num" id="total-sal-mt">–</td>
+              <td class="num" id="total-emp-pct">–</td>
+              <td class="num" id="total-emp-mt">–</td>
+            </tr>
+          </tfoot>
+        </table>
+
+
+      </div>
+
+    </section>
+
     <!-- IR + Net dispo (année 1) -->
     <section class="card span-12">
       <h2>Impôt sur le revenu du foyer + Net dispo (année 1)</h2>
@@ -308,6 +415,7 @@
             <option value="sasu">SASU IR (salaire × 90 % + BNC)</option>
             <option value="sasuIS">SASU IS (salaire × 90 % + dividendes selon mode)</option>
             <option value="micro">Micro-entreprise</option>
+            <option value="salarie">Salariat</option>
             <option value="manual">Manuel</option>
           </select>
         </div>
@@ -335,14 +443,10 @@
         </div>
         <div>
           <label for="cashOpts">Encaissements à considérer pour le net</label>
-          <select id="cashOpts" onchange="calcIR()">
-            <option value="tns_spouse" selected>Dirigeant (TNS) + Conjoint</option>
-            <option value="tns_only">Dirigeant seulement (TNS)</option>
-            <option value="sasu_bnc_spouse">SASU IR: salaire + BNC + Conjoint</option>
-            <option value="sasu_is_spouse">SASU IS: net salaire + net dividendes + Conjoint</option>
-            <option value="micro_spouse">Micro + Conjoint</option>
-            <option value="micro_only">Micro seul</option>
-          </select>
+            <select id="cashOpts" onchange="calcIR()">
+              <option value="you_plus_spouse">Vous + Conjoint(e)</option>
+              <option value="you_only">Vous seul</option>
+            </select>
           <div class="hint">Synchronisé automatiquement sur le <b>mode principal</b>.</div>
         </div>
       </div>
@@ -385,14 +489,7 @@
         <tr id="projHeaderRow"></tr>
       </thead>
       <tbody id="tblProj"></tbody>
-      <tfoot>
-        <tr>
-          <th>Total / Moyenne</th><th></th><th></th><th></th>
-          <th class="num" id="pCA">–</th><th class="num" id="pR">–</th><th class="num" id="pBNC">–</th>
-          <th class="num" id="pDivB">–</th><th class="num" id="pDivN">–</th><th></th>
-          <th class="num" id="pCot">–</th><th class="num" id="pRNI">–</th><th class="num" id="pIR">–</th><th class="num" id="pNet">–</th>
-        </tr>
-      </tfoot>
+      <tfoot id="projFooter"></tfoot>
     </table>
   </div>
 </section>

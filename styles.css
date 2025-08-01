@@ -1,7 +1,7 @@
 /*
  * Copyright © 2025 Jérémy Lezmy.
  * Usage non commercial uniquement. Pour une utilisation commerciale,
- * contactez jeremy.lezmy@phusis.io pour obtenir une licence.
+ * contactez eremy.lezmy-robert@hotmail.fr pour obtenir une licence.
  */
 
 :root{
@@ -122,16 +122,20 @@ body::before{
 }
 
 /* Topbar */
-.topbar{
-  position:fixed;
-  top:0;
-  left:0;
-  right:0;
-  z-index:60;
-  background:rgba(255,255,255,.7);
+.topbar {
+  isolation: isolate; /* garde son propre contexte empilé */
+  background: var(--topbar-bg, rgba(255,255,255,.9));
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 60;
   backdrop-filter: blur(8px);
   border-bottom:1px solid var(--border);
+  transition: background .2s ease, box-shadow .2s ease;
 }
+
+
 .topbar.unpinned{position:static;}
 :root[data-theme="dark"] .topbar{ background:rgba(18,27,48,.6); }
 .topbar .container{
@@ -220,11 +224,35 @@ body > .container:first-of-type {
   padding-top: 50px;
 }
 /* Layout */
-.container{
-  max-width:1240px;
-  margin:0 auto;
-  padding:0 16px 40px;
+.container {
+  max-width: 1400px;           /* élargir le plafond */
+  width: min(100%, 1400px);    /* ne dépasse pas, mais prend tout l’espace dispo en dessous */
+  margin: 0 auto;
+  padding: 0 32px 40px;        /* un peu plus de padding horizontal sur grand */
 }
+@media (min-width: 1600px) {
+  .container {
+    max-width: 1800px;
+    padding: 0 68px 40px;
+  }
+  .topbar .container {
+    max-width: 1800px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 50px 80px; /* adapte l’espacement horizontal */
+    box-sizing: border-box;
+  }
+}
+@media (min-width: 1400px){
+  .grid {
+    gap: 24px;
+  }
+  .card {
+    padding: 20px;
+  }
+}
+
+
 header{padding:12px 16px 8px;}
 h1{font-size:22px;margin:0 0 6px;}
 .subtitle{color:var(--muted);font-size:14px;}
@@ -278,8 +306,8 @@ label{display:block;font-size:13px;color:var(--muted);margin-bottom:5px;}
 /* Table wrapper + tables */
 .table-wrapper{
   overflow-x:auto;
+  overflow-y: visible;
   -webkit-overflow-scrolling: touch;
-  position:relative;
   width:100%;
 }
 .table-wrapper table{
@@ -296,7 +324,6 @@ th{
   color:#2f3f63;
   text-align:left;
   font-weight:600;
-  position:sticky;
   top:calc(var(--topbar-h)+4px);
   background:var(--panel);
   z-index:2;
@@ -330,7 +357,7 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;}
 }
 .tab.active{outline:2px solid var(--accent);}
 
-.hint{font-size:12px;color:var(--muted);margin-top:4px;}
+.hint{font-size:8px;color:var(--muted);margin-top:4px;}
 .warn{color:var(--warn);}
 .ok{color:var(--accent2);}
 .topbar .container{
@@ -354,10 +381,127 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;}
   font-weight: 600;
   border-left: 3px solid var(--danger);
 }
+
+/* Highlight de la ligne total/moyenne dans la projection */
+#projFooter tr.summary {
+  background: rgba(110, 231, 255, 0.08); /* léger fond bleu pâle */
+  font-weight: 700;
+}
+
+#projFooter tr.summary td {
+  border-top: 2px solid var(--accent);
+}
+
 .micro-warning-detail td {
   padding-top: 4px;
   padding-bottom: 4px;
 }
+
+
+/* Détail des cotisations salariat : colonnes fixes et non-wrap pour éviter saut quand on switch cadre/non-cadre */
+#tblSalariatDetail {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed; /* stabilise la largeur des colonnes */
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+#tblSalariatDetail th,
+#tblSalariatDetail td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#tblSalariatDetail th {
+  white-space: nowrap;
+  vertical-align: middle;
+}
+#tblSalariatDetail td {
+  white-space: nowrap;
+}
+/* #tblSalariatDetail tr:last-child {
+  border-top: 2px solid var(--accent);
+} */
+#tblSalariatDetail tfoot .summary {
+  background: rgba(110, 231, 255, 0.08); /* fond léger bleu-accent */
+  border-top: 2px solid var(--accent);
+  font-weight: 700;
+}
+
+/* si tu veux que le fond soit un peu plus visible en mode clair */
+:root[data-theme="light"] #tblSalariatDetail tfoot .summary {
+  background: rgba(20, 105, 255, 0.06);
+}
+
+
+/* ------------------------------------------------------------------
+   DETAIL COTISATIONS SALARIAT – version header plat
+------------------------------------------------------------------ */
+
+.detail-cotisations {
+  table-layout: fixed;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.detail-cotisations th,
+.detail-cotisations td {
+  padding: 6px 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-bottom: 1px solid var(--border);
+}
+
+.detail-cotisations thead th {
+  /* position: sticky; */
+  top: calc(var(--topbar-h) + 4px);   /* colle juste sous la barre */
+  background: var(--panel);
+  z-index: 3;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.detail-cotisations thead tr{
+  /* position: sticky; */
+  top: calc(var(--topbar-h) + 4px);   /* juste sous la top‑bar      */
+  z-index: 4;                         /* au‑dessus du corps du tbl  */
+}
+
+/* Mise en évidence visuelle facultative */
+.salary-row   { background: rgba(100,180,255,.04); }
+.employer-row { background: rgba(100,255,180,.04); }
+
+/* Footer (ligne Total) */
+.detail-cotisations tfoot .summary {
+  border-top: 2px solid var(--accent);
+  font-weight: 700;
+}
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1; /* garantit chiffres à largeur fixe */
+  white-space: nowrap;
+}
+.num[data-unit="percent"]::after {
+  content: " %";
+  margin-left: 0.2ch;
+  white-space: nowrap;
+  font-size: 0.85em;
+}
+
+.num[data-unit="eur"]::after {
+  content: "\00a0€"; /* espace insécable + euro */
+  margin-left: 0.1ch;
+  white-space: nowrap;
+  font-size: 0.85em;
+}
+
+
 
 /* Responsive / compact */
 @media (max-width: 240px){

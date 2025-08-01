@@ -10,9 +10,11 @@ function togglePin(v){
   try{ localStorage.setItem('simv122_pin', v); }catch(e){}
 }
 (function(){ 
+  try { localStorage.setItem('simv122_theme', 'dark'); } catch(e){}
   var savedTheme=null, savedPin=null;
   try{ savedTheme = localStorage.getItem('simv122_theme'); savedPin=localStorage.getItem('simv122_pin'); }catch(e){}
-  if(savedTheme){ document.getElementById('themeSel').value = savedTheme; applyTheme(savedTheme); } else { applyTheme('auto'); }
+  if(savedTheme){ document.getElementById('themeSel').value = savedTheme; applyTheme(savedTheme); } else { document.getElementById('themeSel').value = 'dark';
+  applyTheme('dark'); }
   if(savedPin){ document.getElementById('pinSel').value = savedPin; togglePin(savedPin); }
   else { togglePin('on'); }
 })();

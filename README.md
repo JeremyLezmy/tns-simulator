@@ -230,7 +230,7 @@ Actuellement aucune suite automatisée incluse. Pour fiabiliser :
 ## 📬 Contact
 
 Jérémy Lezmy
-Email : `eremy.lezmy-robert@hotmail.fr`
+Email : `jeremy.lezmy-robert@hotmail.fr`
 Repo : [https://github.com/JeremyLezmy/tns-simulator](https://github.com/JeremyLezmy/tns-simulator)
 
 ---

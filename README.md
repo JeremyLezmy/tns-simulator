@@ -2,7 +2,7 @@
 
 **Simulateur TNS / SASU (IR / IS) + Salariat pour la France**
 À partir du chiffre d’affaires ou d’un salaire brut, calcule rémunération, cotisations, impôts, net foyer et projection pluriannuelle.
-Version : v1.4 (front-end statique, JavaScript/HTML/CSS, côté client).
+Version : v1.5 (front-end statique, JavaScript/HTML/CSS, côté client).
 
 ## Sommaire
 

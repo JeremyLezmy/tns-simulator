@@ -145,9 +145,16 @@ window.addEventListener('resize', () => {
 });
 
 function updateSalaireHelper(){
-  // recalculer en fonction du mode et relancer salarié
-  calcSALARIE(true);
+  const mode = document.getElementById('salaireMode').value;
+  const lbl  = document.querySelector('label[for="salaireBrut"]');
+  if (lbl) {
+    lbl.textContent = mode === 'mensuel'
+      ? 'Salaire brut mensuel (€)'
+      : 'Salaire brut annuel (€)';
+  }
+  calcSALARIE(true);          // recalcule année 1 + projection
 }
+
 
 function switchMode(v){
   var tns = document.getElementById('blocTNS');
@@ -792,190 +799,180 @@ function getSalaryState(salaireBrutAnnuel, variablePct, variableFixe, statut, ta
   };
 }
 
-// Décompose les charges salariales & patronales pour salariat en garantissant que
-// les totaux égalent exactement brutTotal * tauxSal / tauxPat.
-// Le découpage en postes est pondéré ici ; tu pourras remplacer les poids par
-// des assiettes/taux réels selon statut cadre/non-cadre.
-function decomposeSalariatDetailed(brutTotal, statut, tauxSal, tauxPat) {
-  const totalSalarie = brutTotal * tauxSal;
-  const totalEmployeur = brutTotal * tauxPat;
 
-  // Taux indicatifs par poste : tu peux remplacer par les taux officiels ensuite.
-  // Ici ce sont des poids relatifs pour répartition initiale.
-  const salariePosts = [
-    { key: 'retraite_base', label: 'Retraite de base', weight: 0.35 },
-    { key: 'retraite_compl', label: statut === 'cadre' ? 'Retraite complémentaire AGIRC-ARRCO (cadre)' : 'Retraite complémentaire AGIRC-ARRCO (non-cadre)', weight: 0.25 },
-    { key: 'maladie', label: 'Assurance maladie', weight: 0.20 },
-    { key: 'csg_crds', label: 'CSG / CRDS', weight: 0.20 }
-  ];
+/**
+ * Décomposition complète des cotisations – barème 2025
+ * Retourne un objet « parts » : { label → { base, salarie, employeur } }
+ * Les postes identiques côté sal. et pat. portent le même label ; ils seront fusionnés
+ * ensuite dans calcSALARIE.
+ */
+function decomposeSalariatDetailed(brutTotal, statut) {
+  const PASS      = val('pass');          // PASS annuel (input UI)
+  const T1_LIMIT  = PASS;                 // Tranche 1  (0 → PASS)
+  const T2_LIMIT  = 8 * PASS;             // Tranche 2  (PASS → 8 PASS)
+    /* ---------- Seuils SMIC pour exonérations --------- */
+  const smicHour      = val('smicHour') || 11.65;          // champ déjà présent dans l’UI
+  const smicMensuel   = smicHour * 151.67;                 // 35 h hebdo × 52/12
+  const smicAnnuel    = smicMensuel * 12;
+  const seuilMAL_AF   = 2.5 * smicAnnuel;                  // maladie réduite (7 %)
+  const seuilAF       = 3.5 * smicAnnuel;                  // AF réduites (3,45 %)
 
-  const employeurPosts = [
-    { key: 'retraite_base', label: 'Retraite de base', weight: 0.30 },
-    { key: 'retraite_compl', label: statut === 'cadre' ? 'Retraite complémentaire AGIRC-ARRCO (cadre)' : 'Retraite complémentaire AGIRC-ARRCO (non-cadre)', weight: 0.20 },
-    { key: 'maladie', label: 'Assurance maladie', weight: 0.15 },
-    { key: 'allocations_familiales', label: 'Allocations familiales', weight: 0.20 },
-    { key: 'autres', label: 'Autres contributions patronales', weight: 0.15 }
-  ];
 
-  // Sommes de poids
-  const sumSalWeights = salariePosts.reduce((s,p) => s + p.weight, 0);
-  const sumEmpWeights = employeurPosts.reduce((s,p) => s + p.weight, 0);
-
-  // Première répartition (float)
-  const parts = {};
-  salariePosts.forEach(p => {
-    parts[p.key] = {
-      label: p.label,
-      salarie: totalSalarie * (p.weight / sumSalWeights),
-      employeur: 0
-    };
-  });
-  employeurPosts.forEach(p => {
-    const key = 'pat_' + p.key;
-    parts[key] = {
-      label: p.label,
-      salarie: 0,
-      employeur: totalEmployeur * (p.weight / sumEmpWeights)
-    };
-  });
-
-  // Calcul des sous-totaux pour voir dérive d'arrondi
-  const salarieSumCalc = Object.values(parts).reduce((s,it) => s + (it.salarie || 0), 0);
-  const employeurSumCalc = Object.values(parts).reduce((s,it) => s + (it.employeur || 0), 0);
-
-  // Ajustement de rattrapage : on colle la différence sur une ligne “Ajustement” pour garder traçabilité
-  const deltaSalarie = totalSalarie - salarieSumCalc;
-  const deltaEmployeur = totalEmployeur - employeurSumCalc;
-  if (Math.abs(deltaSalarie) > 1e-6) {
-    parts['ajust_salarie'] = {
-      label: 'Ajustement salarial',
-      salarie: deltaSalarie,
-      employeur: 0
-    };
-  }
-  if (Math.abs(deltaEmployeur) > 1e-6) {
-    parts['ajust_employeur'] = {
-      label: 'Ajustement employeur',
-      salarie: 0,
-      employeur: deltaEmployeur
-    };
-  }
-
-  // Totaux forcés (pour affichage cohérent)
-  parts.total = {
-    label: 'Total',
-    salarie: totalSalarie,
-    employeur: totalEmployeur
+  /* === CALCUL DES MONTANTS === */
+  const sal = {
+    vieillesse_deplaf : 0.0040 * brutTotal,
+    vieillesse_plaf   : 0.0690 * Math.min(brutTotal, PASS),
+    rc_tr1            : 0.0315 * Math.min(brutTotal, T1_LIMIT),
+    rc_tr2            : 0.0864 * Math.max(0, Math.min(brutTotal, T2_LIMIT) - T1_LIMIT),
+    ceg_tr1           : 0.0086 * Math.min(brutTotal, T1_LIMIT),
+    ceg_tr2           : 0.0108 * Math.max(0, Math.min(brutTotal, T2_LIMIT) - T1_LIMIT),
+    cet               : 0.0014 * Math.max(0, brutTotal - PASS),
+    apec              : (statut === 'cadre') ? 0.00024 * Math.min(brutTotal, 4 * PASS) : 0,
+    csg_imp           : 0.0240 * 0.9825 * brutTotal,
+    csg_non_imp       : 0.0680 * 0.9825 * brutTotal,
+    crds              : 0.0050 * 0.9825 * brutTotal
   };
 
-  return parts; // objet clé -> { label, salarie, employeur }
+  const emp = {
+    maladie : (brutTotal <= seuilMAL_AF ? 0.0700 : 0.1300) * brutTotal,
+    vieillesse_deplaf : 0.0202 * brutTotal,
+    vieillesse_plaf   : 0.0855 * Math.min(brutTotal, PASS),
+    alloc_fam : (brutTotal <= seuilAF  ? 0.0345 : 0.0525) * brutTotal,
+    chomage           : 0.0400 * Math.min(brutTotal, 4 * PASS),
+    ags               : 0.0020 * Math.min(brutTotal, 4 * PASS),
+    rc_tr1            : 0.0472 * Math.min(brutTotal, T1_LIMIT),
+    rc_tr2            : 0.1295 * Math.max(0, Math.min(brutTotal, T2_LIMIT) - T1_LIMIT),
+    ceg_tr1           : 0.0129 * Math.min(brutTotal, T1_LIMIT),
+    ceg_tr2           : 0.0162 * Math.max(0, Math.min(brutTotal, T2_LIMIT) - T1_LIMIT),
+    cet               : 0.0021 * Math.max(0, brutTotal - PASS),
+    prevoyance        : (statut === 'cadre') ? 0.0150 * Math.min(brutTotal, PASS) : 0,
+    fnal              : 0.0010 * Math.min(brutTotal, PASS),
+    csa               : 0.0030 * brutTotal,
+    formation  : 0.0055 * brutTotal,     // entreprise < 11 salariés
+    apprentissage : 0.0068   * brutTotal  
+  };
+
+  /* === PUSH AVEC BASE & LABEL COMMUNS === */
+  const parts = {};
+  function push(label, base, salarie, employeur) {
+    parts[label] = { base, salarie, employeur };
+  }
+
+  // libellés harmonisés
+  push('Assurance maladie',                brutTotal,               0,                    emp.maladie);
+  push('Assurance vieillesse déplaf.',     brutTotal,               sal.vieillesse_deplaf,emp.vieillesse_deplaf);
+  push('Assurance vieillesse plaf.',       Math.min(brutTotal,PASS),sal.vieillesse_plaf,  emp.vieillesse_plaf);
+  push('Allocations familiales',           brutTotal,               0,                    emp.alloc_fam);
+  push('Assurance chômage',                Math.min(brutTotal,4*PASS),0,                  emp.chomage);
+  push('AGS',                              Math.min(brutTotal,4*PASS),0,                  emp.ags);
+
+  push('Formation professionnelle', brutTotal, 0, emp.formation);
+  push('Apprentissage', brutTotal, 0, emp.apprentissage);
+
+  push('Retraite compl. Tr. 1',            Math.min(brutTotal,T1_LIMIT), sal.rc_tr1,       emp.rc_tr1);
+  push('Retraite compl. Tr. 2',            Math.max(0, Math.min(brutTotal,T2_LIMIT)-T1_LIMIT),
+                                                                  sal.rc_tr2,             emp.rc_tr2);
+  push('CEG Tr. 1',                        Math.min(brutTotal,T1_LIMIT), sal.ceg_tr1,      emp.ceg_tr1);
+  push('CEG Tr. 2',                        Math.max(0, Math.min(brutTotal,T2_LIMIT)-T1_LIMIT),
+                                                                  sal.ceg_tr2,             emp.ceg_tr2);
+  push('CET (> PASS)',                     Math.max(0, brutTotal-PASS), sal.cet,           emp.cet);
+  if (statut === 'cadre')
+    push('Prévoyance cadres',              Math.min(brutTotal,PASS),    0,                 emp.prevoyance);
+  if (statut === 'cadre')
+    push('APEC',                           Math.min(brutTotal,4*PASS),  sal.apec,          0);
+
+  push('FNAL 0,10 %',                      Math.min(brutTotal,PASS),    0,                 emp.fnal);
+  push('CSA 0,30 %',                       brutTotal,                   0,                 emp.csa);
+
+  // contributions fiscales
+  push('CSG imposable',                    0.9825*brutTotal,           sal.csg_imp,        0);
+  push('CSG non‑imposable',                0.9825*brutTotal,           sal.csg_non_imp,    0);
+  push('CRDS',                             0.9825*brutTotal,           sal.crds,           0);
+
+  // totaux
+  const totalSal = Object.values(parts).reduce((s,p)=>s+p.salarie,0);
+  const totalEmp = Object.values(parts).reduce((s,p)=>s+p.employeur,0);
+
+  return {
+    breakdown : parts,
+    totalSalarie : totalSal,
+    totalEmployeur : totalEmp,
+    tauxEffectifSalarial : totalSal / brutTotal,
+    tauxEffectifPatronal : totalEmp / brutTotal
+  };
 }
+
 
 
 
 
 function calcSALARIE(triggerProj){
-  const salaireBrut = getSalaireAnnuel();
-  const variablePct = val('variablePct') / 100;
-  const variableFixe = val('variableFixe');
-  const variable = salaireBrut * variablePct + variableFixe;
-  const brutTotal = salaireBrut + variable;
+  const salaireDeBase = getSalaireAnnuel();
+  const variablePct   = val('variablePct') / 100;
+  const variableFixe  = val('variableFixe');
+  const brutTotal     = salaireDeBase + salaireDeBase*variablePct + variableFixe;
 
-  const statut = document.getElementById('statutSal').value;
-  const defaultTaux = (statut === 'cadre') ? 0.26 : 0.22;
-  const tauxSalInput = val('tauxSalarial') / 100;
-  const tauxSal = tauxSalInput !== defaultTaux ? tauxSalInput : defaultTaux;
+  const statut        = document.getElementById('statutSal').value;
 
-  const tauxPat = val('tauxPatronal') / 100;
+  /* === Décomposition fine === */
+  const deco = decomposeSalariatDetailed(brutTotal, statut);
 
-  const chargesSalariales = brutTotal * tauxSal;
-  const netAvantIR = Math.max(0, brutTotal - chargesSalariales);
-  const chargesPatronales = brutTotal * tauxPat;
-  const superBrut = brutTotal * (1 + tauxPat);
+  /* === AGRÉGATION PAR LIBELLÉ (fusion sal. + pat.) === */
+  const rows   = [];
+  let totalSal = 0, totalEmp = 0;
 
-  // État global
-  window.__SALARIE_state = {
-    brutTotal,
-    netAvantIR,
-    chargesSalariales,
-    chargesPatronales,
-    superBrut
-  };
+  for (const [label, p] of Object.entries(deco.breakdown)) {
+    if (label === 'total') continue;
+    totalSal += p.salarie;
+    totalEmp += p.employeur;
 
-  // KPI
-  safeSetText('salBrutKpi', fmtEUR(brutTotal));
-  safeSetText('salChargesSalariales', fmtEUR(chargesSalariales));
-  safeSetText('salChargesPatronales', fmtEUR(chargesPatronales));
-  safeSetText('salSuperBrut', fmtEUR(superBrut));
-  safeSetText('salNet', fmtEUR(netAvantIR));
+    const pctSal = p.base>0 ? (p.salarie  / p.base * 100) : 0;
+    const pctEmp = p.base>0 ? (p.employeur/ p.base * 100) : 0;
 
-  if (document.getElementById('modeSel').value === 'salarie'){
+    rows.push(`
+      <tr>
+        <td>${label}</td>
+        <td class="num">${fmtEUR(p.base)}</td>
+        <td class="num">${pctSal.toFixed(2).replace('.',',')} %</td>
+        <td class="num">${fmtEUR(p.salarie)}</td>
+        <td class="num">${pctEmp.toFixed(2).replace('.',',')} %</td>
+        <td class="num">${fmtEUR(p.employeur)}</td>
+      </tr>`);
+  }
+
+  /* === KPI + Footer === */
+  const superBrut   = brutTotal + totalEmp;
+  const netAvantIR  = brutTotal - totalSal;
+
+  safeSetText('salBrutKpi',           fmtEUR(brutTotal));
+  safeSetText('salChargesSalariales', fmtEUR(totalSal));
+  safeSetText('salChargesPatronales', fmtEUR(totalEmp));
+  safeSetText('salSuperBrut',         fmtEUR(superBrut));
+  safeSetText('salNet',               fmtEUR(netAvantIR));
+
+  document.querySelector('#tblSalariatDetail tbody').innerHTML = rows.join('');
+
+  document.getElementById('total-sal-pct').textContent =
+        ((totalSal / brutTotal)*100).toFixed(1).replace('.',',')+' %';
+  document.getElementById('total-emp-pct').textContent =
+        ((totalEmp / brutTotal)*100).toFixed(1).replace('.',',')+' %';
+  document.getElementById('total-sal-mt').textContent = fmtEUR(totalSal);
+  document.getElementById('total-emp-mt').textContent = fmtEUR(totalEmp);
+  document.getElementById('total-base').textContent = fmtEUR(brutTotal);
+
+  /* === MàJ des deux champs taux désactivés === */
+  document.getElementById('tauxSalarial').value = (deco.tauxEffectifSalarial*100).toFixed(1);
+  document.getElementById('tauxPatronal').value = (deco.tauxEffectifPatronal*100).toFixed(1);
+
+  /* === Sync IR + projection éventuelle === */
+  if (document.getElementById('modeSel').value === 'salarie') {
     document.getElementById('syncSource').value = 'salarie';
-    document.getElementById('cashOpts').value = 'salarie_only';
+    document.getElementById('cashOpts').value   = 'you_plus_spouse';
     syncIR();
   }
-
   if (triggerProj) projectYears();
-  log('calcSALARIE — brutTotal=' + Math.round(brutTotal));
-
-  // Décomposition
-  const decomposition = decomposeSalariatDetailed(brutTotal, statut, tauxSal, tauxPat);
-
-  /* ------------------------------------------------------------------
-     Construction du tableau : 1 ligne par poste, combinant part sal. 
-     et part employeur (plus de doublons).
-  ------------------------------------------------------------------ */
-  const bases = [
-    'retraite_base',
-    'retraite_compl',
-    'maladie',
-    'csg_crds',
-    'allocations_familiales',
-    'autres'
-  ];
-
-  const detailRows = [];
-  const brut = brutTotal;
-
-  bases.forEach(key => {
-    const salPart = decomposition[key]?.salarie || 0;
-    const empPart = decomposition['pat_' + key]?.employeur || 0;
-    if (salPart === 0 && empPart === 0) return;          // rien à afficher
-
-    const pctSal = brut ? (salPart / brut) * 100 : 0;
-    const pctEmp = brut ? (empPart / brut) * 100 : 0;
-
-    detailRows.push(`
-      <tr>
-        <td>${decomposition[key]?.label || decomposition['pat_' + key]?.label}</td>
-        <td class="num">${pctSal.toFixed(1).replace('.',',')} %</td>
-        <td class="num">${fmtEUR(salPart)}</td>
-        <td class="num">${pctEmp.toFixed(1).replace('.',',')} %</td>
-        <td class="num">${fmtEUR(empPart)}</td>
-      </tr>
-    `);
-  });
-
-
-  const detailTableBody = document.querySelector('#tblSalariatDetail tbody');
-  if (detailTableBody) {
-    console.assert(detailTableBody, 'tbody #tblSalariatDetail introuvable');
-    detailTableBody.innerHTML = detailRows.join('');
-
-    // footer
-    const totalSalarie = decomposition.total?.salarie || 0;
-    const totalEmployeur = decomposition.total?.employeur || 0;
-    const pctSal = brut > 0 ? (totalSalarie / brut) * 100 : 0;
-    const pctEmp = brut > 0 ? (totalEmployeur / brut) * 100 : 0;
-    document.getElementById('total-sal-pct').textContent = pctSal.toFixed(1).replace('.',',') + ' %';
-    document.getElementById('total-sal-mt').textContent = fmtEUR(totalSalarie);
-    document.getElementById('total-emp-pct').textContent = pctEmp.toFixed(1).replace('.',',') + ' %';
-    document.getElementById('total-emp-mt').textContent = fmtEUR(totalEmployeur);
-  } else {
-    // fallback ancien
-    document.getElementById('tblSalariat').innerHTML = detailRows.join('');
-  }
 }
+
 
 
 
@@ -1121,10 +1118,12 @@ function projectYears(){
   var distRate=val('distRate')/100;
   var divMode=(document.getElementById('divMode')? document.getElementById('divMode').value : 'pfu');
 
-  // Salariat base + croissance
-  var sal0 = val('salaireBrut');
-  var gSal = val('salaireGrow')/100; // suppose nouvel input
-  // statut / taux dynamiques seront lus chaque année
+  // ---- Salariat : base et croissance ----
+  var salInputMode = document.getElementById('salaireMode').value || 'annuel';
+  var sal0Input    = val('salaireBrut');          // valeur rentrée
+  var sal0 = (salInputMode === 'mensuel') ? sal0Input * 12 : sal0Input; // annualise si besoin
+  var gSal = val('salaireGrow') / 100;            // nouvel input ajouté
+
 
   for(var k=0;k<n;k++){
     var year = y0 + k;

@@ -8,13 +8,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Simulateur TNS & IR – CA → R (France) • v1.4</title>
+  <title>Simulateur TNS & IR – CA → R (France) • v1.5</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <div class="topbar" id="topbar">
     <div class="container">
-      <div style="font-weight:700">Simulateur TNS & IR • v1.4</div>
+      <div style="font-weight:700">Simulateur TNS & IR • v1.5</div>
       <div class="actions">
         <div class="pill">
           <label for="modeSel">Mode rémunération</label>
@@ -295,6 +295,7 @@
       <div id="microWarningDetail" class="hint" style="margin-top:6px;"></div>
     </section>
 
+    <!-- Bloc Salarié -->
     <section class="card span-12" id="blocSALARIE" style="display:none">
       <h2>Salariat</h2>
       <div class="row">
@@ -312,6 +313,12 @@
       </div>
       <div class="row">
         <div>
+          <label for="salaireGrow">Croissance salaire (% / an)</label>
+          <input id="salaireGrow" type="number" value="0" oninput="updateSalaireHelper()">
+        </div>
+      </div>
+      <div class="row">
+        <div>
           <label for="variablePct">Variable (% du brut)</label>
           <input id="variablePct" type="number" value="0" step="0.1">
         </div>
@@ -323,13 +330,13 @@
       <div class="row">
         <div>
           <label for="tauxSalarial">Cotisations salariales (%)</label>
-          <input id="tauxSalarial" type="number" value="22">
-          <div class="hint">Taux moyen assimilé salarié (modifiable).</div>
+          <input id="tauxSalarial" type="number" value="22" disabled>
+          <div class="hint">Taux moyen assimilé salarié (calculé).</div>
         </div>
         <div>
           <label for="tauxPatronal">Cotisations patronales (%)</label>
-          <input id="tauxPatronal" type="number" value="42">
-          <div class="hint">Coût employeur moyen (modifiable).</div>
+          <input id="tauxPatronal" type="number" value="42" disabled>
+          <div class="hint">Coût employeur moyen (calculé).</div>
         </div>
       </div>
       <div style="display:flex;gap:10px;align-items:end;margin-top:6px">
@@ -369,27 +376,31 @@
         <div class="table-wrapper">
         <table id="tblSalariatDetail" class="detail-cotisations">
           <colgroup>
-            <col style="width:40%">
+            <col style="width:38%">
+            <col style="width:12%">
             <col style="width:10%">
-            <col style="width:15%">
+            <col style="width:13%">
             <col style="width:10%">
-            <col style="width:15%">
+            <col style="width:13%">
           </colgroup>
+
 
           <!-- NOUVEL EN‑TÊTE -->
           <thead>
             <tr>
               <th>Poste</th>
-              <th class="num">% sal.</th>
-              <th class="num">€ sal.</th>
-              <th class="num">% pat.</th>
-              <th class="num">€ pat.</th>
+              <th class="num">Base</th>
+              <th class="num">Taux ch. salariales (%)</th>
+              <th class="num">Montant ch. salariales (€)</th>
+              <th class="num">Taux ch. patronales (%)</th>
+              <th class="num">Montant ch. patronales (€)</th>
             </tr>
           </thead>
           <tbody><!-- injecté par JS --></tbody>
           <tfoot>
             <tr class="summary">
               <td>Total</td>
+              <td class="num" id="total-base">Brut</td>      <!-- nouvelle cellule -->
               <td class="num" id="total-sal-pct">–</td>
               <td class="num" id="total-sal-mt">–</td>
               <td class="num" id="total-emp-pct">–</td>

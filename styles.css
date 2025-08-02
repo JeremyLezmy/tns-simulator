@@ -113,13 +113,15 @@ body::before {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background: radial-gradient(1400px 1000px at 15% -5%, rgba(62, 118, 255, 0.18) 0%, rgba(255, 255, 255, 0) 65%), linear-gradient(180deg, rgba(233, 238, 255, 0.5) 0%, var(--bg) 55%, var(--bg) 100%);
+  background: radial-gradient(1400px 1000px at 15% -5%, rgba(62, 118, 255, 0.18) 0%, rgba(255, 255, 255, 0) 65%),
+    linear-gradient(180deg, rgba(233, 238, 255, 0.5) 0%, var(--bg) 55%, var(--bg) 100%);
   background-attachment: fixed;
   z-index: -1;
   background-size: cover;
 }
 :root[data-theme="dark"] body::before {
-  background: radial-gradient(1400px 1000px at 15% -5%, rgba(25, 39, 77, 0.5) 0%, rgba(11, 19, 32, 0) 65%), linear-gradient(180deg, rgba(14, 26, 54, 0.9) 0%, var(--bg) 55%, var(--bg) 100%);
+  background: radial-gradient(1400px 1000px at 15% -5%, rgba(25, 39, 77, 0.5) 0%, rgba(11, 19, 32, 0) 65%),
+    linear-gradient(180deg, rgba(14, 26, 54, 0.9) 0%, var(--bg) 55%, var(--bg) 100%);
   background-size: cover;
 }
 

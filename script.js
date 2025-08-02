@@ -316,42 +316,42 @@ var NOTES = {
   howto:
     "<h3>Guide d’utilisation</h3>" +
     "<ol>" +
-    "<li>Choisissez le <b>mode</b> (TNS / SASU-IR / SASU-IS) en haut.</li>" +
-    "<li>Renseignez les paramètres de l’<b>année 1</b> et les <b>croissances</b>.</li>" +
-    "<li>Cliquez sur <b>Calculer (année 1)</b> (selon le mode) – la projection se lance automatiquement.</li>" +
-    "<li>Le bloc <b>IR du foyer</b> se synchronise avec le mode et agrège salaires, BNC/quote-part, dividendes (au barème si choisi), et le micro-BNC du conjoint.</li>" +
-    "<li>Le <b>Net foyer</b> = encaissements (selon le mode) − IR. Il diffère du <b>RNI</b> (base fiscale).</li>" +
-    "<li>Exportez via <b>CSV</b> (FR/Intl).</li>" +
+    "<li>Choisissez le <b>mode</b> (TNS / SASU-IR / SASU-IS / Micro / Salariat) en haut.</li>" +
+    "<li>Renseignez les paramètres de l’<b>année 1</b> (CA, salaires, charges, croissance, conjoint, etc.) et les champs de <b>croissance</b> (inflation, PASS, SMIC, salaire, CA, etc.).</li>" +
+    "<li>Cliquez sur <b>Calculer (année 1)</b> pour déclencher le calcul spécifique au mode ; la projection se lance automatiquement ensuite.</li>" +
+    "<li>Dans le bloc <b>IR du foyer</b>, choisissez si vous incluez le conjoint (<i>Vous seul(e)</i> vs <i>Vous + conjoint(e)</i>), ajustez le nombre de <b>parts</b> et activez la déduction CSG si applicable pour les TNS.</li>" +
+    "<li>Comprenez les notions : <b>RNI</b> (base fiscale pour l’IR) vs <b>Net foyer</b> (flux réellement perçu = encaissements − IR).</li>" +
+    "<li>Analysez les <b>warnings</b> : dépassements micro, risques PUMA/CSM, validation trimestres retraite, sortie du régime micro après deux dépassements consécutifs.</li>" +
+    "<li>Exportez vos résultats détaillés via <b>CSV</b> en version française ou internationale.</li>" +
     "</ol>",
   params:
     "<h3>Paramètres & hypothèses</h3>" +
     "<ul>" +
-    "<li><b>PASS</b> & <b>barème IR</b> indexés par vos champs d’inflation.</li>" +
-    "<li><b>TNS</b> : assiette A=74 % × R ; postes mal./IJ/retraite/RCI/ID/AF plafonnés en PASS ; CSG-CRDS 9,7 % de A (option de neutralisation IS).</li>" +
-    "<li><b>SASU-IR</b> : salaire imposable = 90 % brut ; PS sur quote-part au taux paramétré (9,7 % ou 17,2 %).</li>" +
-    "<li><b>SASU-IS</b> : coût employeur = brut × (1 + charges patronales %) ; résultat imposable = marge − coût employeur ; IS = 15 % sur la fraction ≤ seuil PME, puis taux normal ; dividendes = % du résultat après IS ; PFU (12,8 % + 17,2 %) ou barème (abattement 40 % + PS 17,2 %).</li>" +
-    "<li><b>SMIC & trimestres</b> : 1 trimestre = <b>150 × SMIC horaire brut</b> ; 4 trimestres = 600 × SMIC horaire brut.</li>" +
-    "<li><b>PUMA</b> : en l’absence de revenus d’activité, la CSM peut être due. Le simulateur signale simplement le risque (pas de calcul fin).</li>" +
-    "<li>Les taux de cotisations <b>assimilé salarié</b> varient selon statut (cadre/non cadre, exonérations). On laisse des <b>taux moyens</b> modifiables.</li>" +
-    "<li><b>Micro-entreprise</b> : les seuils de chiffre d’affaires annuels dépendent de la nature de l’activité (prestations de services/professions libérales ≈ " +
-    fmtEUR(MICRO_THRESHOLDS.service) +
-    ", vente de marchandises ≈ " +
-    fmtEUR(MICRO_THRESHOLDS.commerce) +
-    "). Un dépassement ponctuel est toléré une année ; en cas de dépassement pendant <b>deux années consécutives</b>, vous sortez automatiquement du régime micro et basculez au régime réel à partir du 1er janvier suivant. Voir la rubrique correspondante pour détails et sources.</li>" +
+    "<li><b>Indexation</b> : PASS, SMIC et barème IR sont indexés selon les champs d’inflation/croissance que vous fournissez.</li>" +
+    "<li><b>TNS</b> : assiette A = 74 % × R ; cotisations plafonnées selon PASS (maladie ≤ 3 PASS, IJ ≤ 5 PASS, retraite, RCI, etc.) ; CSG-CRDS 9,7 % de A (dont 6,8 % est déductible si option activée, ce qui réduit le RNI).</li>" +
+    "<li><b>SASU-IR</b> : salaire imposable = 90 % du brut (assimilation salarié) ; quote-part BNC s’ajoute directement ; prélèvements sociaux sur BNC/quote-part paramétrables.</li>" +
+    "<li><b>SASU-IS</b> : coût employeur = brut × (1 + charges patronales) ; résultat imposable = marge − coût employeur ; IS = 15 % jusqu’au seuil PME, puis taux normal (25 %) ; dividendes distribués peuvent être taxés via le PFU (12,8 % + 17,2 % PS) ou au barème avec abattement 40 % + PS 17,2 %.</li>" +
+    "<li><b>Salariat</b> : décomposition détaillée salariat/employeur (vieillesse, retraite complémentaire, maladie, chômage, AGS, formation, FNAL, CSG/CRDS, etc.). Taux effectifs affichés pour transparence.</li>" +
+    "<li><b>Micro-entreprise</b> : abattement forfaitaire (34 %) → base IR = 66 % du CA ; dépassement toléré une année, deux dépassements consécutifs entraînent la sortie du régime micro.</li>" +
+    "<li><b>Conjoint</b> : inclusion optionnelle. La part fiscale (base) est traitée via <i>baseSpouse</i> (66 % du CA si inclus) et le flux réel via <i>spouseCash</i>. Cela permet de dissocier ce qui entre dans la taxation de ce qui est réellement perçu.</li>" +
+    "<li><b>Parts fiscales</b> : le RNI est divisé par le nombre de parts pour appliquer le barème, puis multiplié pour obtenir l'IR total.</li>" +
     "</ul>",
   sources:
-    "<h3>Sources officielles</h3>" +
+    "<h3>Sources officielles & compléments</h3>" +
     "<ul>" +
-    "<li>Barème IR 2025 (revenus 2024) — Service-Public : <a target='_blank' rel='noopener' href='https://www.service-public.fr/particuliers/actualites/A18045'>A18045</a></li>" +
-    "<li>Brochure pratique IR 2025 — impots.gouv : <a target='_blank' rel='noopener' href='https://www.impots.gouv.fr/www2/fichiers/documentation/brochure/ir_2025/accueil.htm'>IR 2025</a></li>" +
-    "<li>PASS 2025 = 47 100 € — Service-Public : <a target='_blank' rel='noopener' href='https://www.service-public.fr/particuliers/actualites/A15386'>A15386</a></li>" +
-    "<li>IS — Taux normal 25 % et réduit 15 % (seuil 42 500 €) — Service-Public Pro : <a target='_blank' rel='noopener' href='https://entreprendre.service-public.fr/vosdroits/F23575'>F23575</a></li>" +
-    "<li>Dividendes : PFU ou barème + abattement 40 % — Service-Public Pro : <a target='_blank' rel='noopener' href='https://entreprendre.service-public.fr/vosdroits/F32963'>F32963</a> • Service-Public Particulier : <a target='_blank' rel='noopener' href='https://www.service-public.fr/particuliers/vosdroits/F34913/1_7'>F34913</a></li>" +
-    "<li>Validation des trimestres : <b>150 × SMIC horaire brut</b> — Service-Public : <a target='_blank' rel='noopener' href='https://www.service-public.fr/particuliers/vosdroits/F1761'>F1761</a></li>" +
-    "<li>PUMA / CSM — URSSAF : <a target='_blank' rel='noopener' href='https://www.urssaf.fr/accueil/particulier/beneficiaire-puma.html'>Bénéficiaire PUMa</a></li>" +
-    "<li>Dépassement des seuils micro-entreprise : tolérance sur une année, sortie automatique après deux années consécutives <a target='_blank' rel='noopener' href='https://entreprendre.service-public.fr/vosdroits/F32353'>Seuil CA Micro</a></li>" +
+    "<li><b>Barème IR 2025</b> (revenus 2024) — Service-Public : <a target='_blank' rel='noopener' href='https://www.service-public.fr/particuliers/actualites/A18045'>A18045</a> et brochure pratique IR 2025 sur impots.gouv.fr : <a target='_blank' rel='noopener' href='https://www.impots.gouv.fr/portail/files/media/1_metier/2_particulier/documentation/brochure/ir_2025/ir_2025.pdf'>IR 2025</a></li>" +
+    "<li><b>PASS 2025</b> = 47 100 € — Service-Public : <a target='_blank' rel='noopener' href='https://www.service-public.fr/particuliers/actualites/A15386'>A15386</a></li>" +
+    "<li><b>Seuils micro-entreprise</b> et règles de dépassement — Service-Public : <a target='_blank' rel='noopener' href='https://entreprendre.service-public.fr/vosdroits/F32353'>Seuil CA Micro</a></li>" +
+    "<li><b>IS PME</b> 15 % jusqu’à 42 500 € — Service-Public Pro : <a target='_blank' rel='noopener' href='https://entreprendre.service-public.fr/vosdroits/F23575'>F23575</a></li>" +
+    "<li><b>Dividendes</b> : PFU ou barème + abattement 40 % — Service-Public Pro : <a target='_blank' rel='noopener' href='https://entreprendre.service-public.fr/vosdroits/F32963'>F32963</a> et particulier : <a target='_blank' rel='noopener' href='https://www.service-public.fr/particuliers/vosdroits/F34913/1_7'>F34913</a></li>" +
+    "<li><b>Cotisations URSSAF</b> (TNS, salariat, employeur) — URSSAF liste des cotisations : <a target='_blank' rel='noopener' href='https://www.urssaf.fr/portail/home/employeur/cotisations/liste-cotisations.html'>Liste cotisations URSSAF</a></li>" +
+    "<li><b>Charges patronales</b> : synthèse & méthode de calcul — L'Expert-Comptable : <a target='_blank' rel='noopener' href='https://www.l-expert-comptable.com/a/532287-montant-et-calcul-des-charges-patronales.html'>Montant et calcul des charges patronales</a></li>" +
+    "<li><b>Brut → Net salarié</b> : calcul détaillé — L'Expert-Comptable : <a target='_blank' rel='noopener' href='https://www.l-expert-comptable.com/calculateurs/calculer-le-salaire-brut-net.html'>Calculateur brut/net</a> • PayFit : <a target='_blank' rel='noopener' href='https://payfit.com/fr/fiches-pratiques/charges-salariales/'>Charges salariales</a></li>" +
+    "<li><b>Charges patronales (fiche explicative)</b> — PayFit : <a target='_blank' rel='noopener' href='https://payfit.com/fr/fiches-pratiques/charges-patronales/'>Charges patronales</a></li>" +
+    "<li><b>Validation trimestres retraite</b> : 150 × SMIC horaire brut — Service-Public : <a target='_blank' rel='noopener' href='https://www.service-public.fr/particuliers/vosdroits/F1761'>F1761</a></li>" +
+    "<li><b>PUMA / CSM</b> — URSSAF : <a target='_blank' rel='noopener' href='https://www.urssaf.fr/accueil/particulier/beneficiaire-puma.html'>Bénéficiaire PUMa</a></li>" +
     "</ul>" +
-    "<p>Vérifiez chaque année les taux exacts (barème IR, PASS, SMIC, IS) et conditions PME pour l’IS à 15 %.</p>",
+    "<p>⚠️ Les taux et seuils évoluent chaque année : vérifiez les sources officielles au moment de l’usage (IR, PASS, SMIC, IS, règles micro, etc.).</p>",
 };
 function showNote(key, el) {
   var c = document.getElementById("noteContent");

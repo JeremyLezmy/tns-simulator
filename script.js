@@ -176,17 +176,20 @@ function switchMode(v) {
   if (v === "tns") {
     tns.style.display = "block";
     document.getElementById("syncSource").value = "auto";
+    cashSel.value = "you_plus_spouse";
     mainCalc(true);
     syncIR();
   } else if (v === "sasuIR") {
     sasu.style.display = "block";
     document.getElementById("syncSource").value = "auto";
+    cashSel.value = "you_plus_spouse";
     calcSASU(true);
     syncIR(); // met à jour l'IR après avoir rempli les valeurs micro
     return;
   } else if (v === "sasuIS") {
     sisu.style.display = "block";
     document.getElementById("syncSource").value = "auto";
+    cashSel.value = "you_plus_spouse";
     calcSISU(true);
     syncIR(); // met à jour l'IR après avoir rempli les valeurs micro
     return;
@@ -470,11 +473,14 @@ function calcIR() {
   const useManual = syncSrc === "manual";
 
   var enc = 0;
-  var spousePart = includeSpouse ? caSp * 12 : 0;
+  /* Encaissement net du/de la conjoint(e) :
+       – micro‑BNC : 66 % du CA (= même base que RNI)
+       – sinon     : 100 % (adapter ici si vous modélisez d’autres cas) */
+  var spouseCash = includeSpouse ? 0.66 * caSp * 12 : 0;
 
   if (useManual) {
     // === Mode Manuel : on s’appuie sur vos champs saisis ===
-    enc = rSal + rBnc + rDivIR + spousePart;
+    enc = rSal + rBnc + rDivIR + spouseCash;
   } else {
     // === Mode Auto : logique existante par mode principal ===
     if (mainMode === "tns") {
@@ -490,7 +496,7 @@ function calcIR() {
     } else {
       enc += rSal + rBnc + rDivIR; // fallback
     }
-    enc += spousePart;
+    enc += spouseCash;
   }
 
   var net = enc - IR;
@@ -673,7 +679,7 @@ function mainCalc(triggerProj) {
   fillTnsTable(R, cot);
   if (document.getElementById("modeSel").value === "tns") {
     document.getElementById("syncSource").value = "auto";
-    document.getElementById("cashOpts").value = "you_plus_spouse";
+    // document.getElementById("cashOpts").value = "you_plus_spouse";
   }
   syncIR();
   if (triggerProj) projectYears();
@@ -708,7 +714,7 @@ function calcSASU(triggerProj) {
   document.getElementById("sumSasuEnc").textContent = fmtEUR(salaire + bnc);
   if (document.getElementById("modeSel").value === "sasuIR") {
     document.getElementById("syncSource").value = "auto";
-    document.getElementById("cashOpts").value = "you_plus_spouse";
+    // document.getElementById("cashOpts").value = "you_plus_spouse";
   }
   if (document.getElementById("syncSource").value === "auto") {
     syncIR();
@@ -819,7 +825,7 @@ function calcSISU(triggerProj) {
   // Sync IR if selected
   if (document.getElementById("modeSel").value === "sasuIS") {
     document.getElementById("syncSource").value = "auto";
-    document.getElementById("cashOpts").value = "you_plus_spouse";
+    // document.getElementById("cashOpts").value = "you_plus_spouse";
   }
   if (document.getElementById("syncSource").value === "auto") {
     syncIR();
@@ -1133,7 +1139,7 @@ function calcSALARIE(triggerProj) {
   /* === Sync IR + projection éventuelle === */
   if (document.getElementById("modeSel").value === "salarie") {
     document.getElementById("syncSource").value = "auto";
-    document.getElementById("cashOpts").value = "you_plus_spouse";
+    // document.getElementById("cashOpts").value = "you_plus_spouse";
     syncIR();
   }
   if (triggerProj) projectYears();
@@ -1323,18 +1329,22 @@ function projectYears() {
       sal0 = sal0 * (1 + gSal);
     }
 
-    var spouseCA = spouseCA0 * Math.pow(1 + gSp, k);
     var parts = Math.max(1, val("parts"));
     var indexBar = infl * k;
 
-    // cashOpts / conjoint
+    // Préférence encaissement conjoint / calcul une fois par itération
     var rawCashPref = document.getElementById("cashOpts").value;
     var cashPref = getNormalizedCashPref(rawCashPref);
     var includeSpouse = cashPref === "you_plus_spouse";
-    var baseSpouse = includeSpouse ? 0.66 * spouseCA : 0;
+
+    // CA du conjoint (brut) avec croissance
+    var spouseGrossCA = spouseCA0 * Math.pow(1 + gSp, k);
+    // Encaissement réel et base imposable (abattement 34% équivalent à 0.66)
+    var spouseCash = includeSpouse ? 0.66 * spouseGrossCA : 0;
+    var baseSpouse = includeSpouse ? 0.66 * spouseGrossCA : 0;
 
     if (mode === "tns") {
-      var res = solveRForFullRemu(CA, val("chargesPct"), chargesFix0, PASS, includeCsg, CFP);
+      var res = solveRForFullRemu(CA, chargesPct, chargesFix0, PASS, includeCsg, CFP);
       var R = res.R;
       var cot = res.cot;
       var cotTot = cot.cotSansCSG + (includeCsg ? cot.csg : 0);
@@ -1343,7 +1353,7 @@ function projectYears() {
       var RNI = Math.max(0, rSal + baseSpouse - dedCsg);
       var irRes = computeTaxFromBareme(RNI / parts, indexBar);
       var IR = irRes.tax * parts;
-      var enc = R + (includeSpouse ? spouseCA : 0);
+      var enc = R + spouseCash;
       var net = enc - IR;
       var netMens = net / 12;
       /* --- forcer cohérence année 1 avec bloc KPI --- */
@@ -1385,10 +1395,10 @@ function projectYears() {
       var bnc = bnc0;
       var salImp = 0.9 * salaire;
       var psDue = ps * bnc;
-      var RNI2 = salImp + bnc + baseSpouse;
+      var RNI2 = Math.max(0, salImp + bnc + baseSpouse);
       var irRes2 = computeTaxFromBareme(RNI2 / parts, indexBar);
       var IR2 = irRes2.tax * parts;
-      var enc2 = salaire + bnc + (includeSpouse ? spouseCA : 0);
+      var enc2 = salaire + bnc + spouseCash;
       var net2 = enc2 - IR2;
       var netMens = net2 / 12;
       if (k === 0) {
@@ -1439,10 +1449,10 @@ function projectYears() {
 
       var exceeds = caYear > (microState.threshold || MICRO_THRESHOLDS.service);
       /* base taxable : 66 % du CA micro + évent. conjoint */
-      var RNI = Math.max(0, 0.66 * caYear + (includeSpouse ? baseSpouse : 0));
+      var RNI = Math.max(0, 0.66 * caYear + baseSpouse);
       var irRes = computeTaxFromBareme(RNI / parts, indexBar);
       var IR = irRes.tax * parts;
-      var enc = caYear + (includeSpouse ? spouseCA : 0);
+      var enc = caYear + spouseCash;
       var net = enc - IR;
       var netMens = net / 12;
       if (k === 0) {
@@ -1527,11 +1537,11 @@ function projectYears() {
       var superBrut = dynamicSalState.superBrut;
 
       var salImp = 0.9 * brutTotal;
-      var RNI = Math.max(0, salImp + (includeSpouse ? baseSpouse : 0));
+      var RNI = Math.max(0, salImp + baseSpouse);
       var irRes = computeTaxFromBareme(RNI / parts, indexBar);
       var IR = irRes.tax * parts;
 
-      var enc = netAvantIR + (includeSpouse ? spouseCA : 0);
+      var enc = netAvantIR + spouseCash;
       var net = enc - IR;
       var netMens = net / 12;
       if (k === 0) {
@@ -1587,7 +1597,7 @@ function projectYears() {
       var irRes = computeTaxFromBareme(RNI / parts, indexBar);
       var IR = irRes.tax * parts;
       var divNet = divMode === "pfu" ? divNetPFU : divNetBareme;
-      var enc = salNet + divNet + (includeSpouse ? spouseCA : 0);
+      var enc = salNet + divNet + (includeSpouse ? spouseCash : 0);
       var net = enc - IR;
       var netMens = net / 12;
       if (k === 0) {
@@ -1900,6 +1910,7 @@ detectMobileView(); // initial
 document.getElementById("cashOpts")?.addEventListener("change", function () {
   // ne pas écraser syncSource ici, il reste ce qu'il est
   calcIR();
+  projectYears();
 });
 
 function toggleViewMode(mode) {

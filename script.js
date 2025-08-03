@@ -542,9 +542,8 @@ function calcIR() {
   const spouseAcre = document.getElementById("spouseACRE")?.checked;
   const spouseRate0 = getMicroRate(spouseAct);
   const spouseRate = spouseAcre ? spouseRate0 / 2 : spouseRate0;
-  const cotSpouse = includeSpouse ? caSp * 12 * spouseRate : 0;
-  var baseSpouse = includeSpouse ? 0.66 * caSp * 12 : 0; // abattement 34 %
-
+  const cotSpouse = includeSpouse ? caSp * spouseRate : 0;
+  var baseSpouse = includeSpouse ? 0.66 * caSp : 0;
   var dedCsg = 0;
   if (document.getElementById("deductCsg").value === "1" && window.__A_tns) {
     dedCsg = 0.068 * window.__A_tns;
@@ -578,7 +577,7 @@ function calcIR() {
   /* Encaissement net du/de la conjoint(e) :
        – micro‑BNC : 66 % du CA (= même base que RNI)
        – sinon     : 100 % (adapter ici si vous modélisez d’autres cas) */
-  var spouseCash = includeSpouse ? caSp * 12 - cotSpouse : 0;
+  var spouseCash = includeSpouse ? caSp - cotSpouse : 0;
 
   if (useManual) {
     // === Mode Manuel : on s’appuie sur vos champs saisis ===
@@ -617,9 +616,10 @@ function calcIR() {
     IR: IR,
     enc: enc,
     net: net,
-    mode: mainMode,
+    mode: document.getElementById("modeSel").value,
     cashPref: cashPref,
-    microAbattementApplied: mainMode === "micro",
+    includeSpouse: includeSpouse,
+    microAbattementApplied: document.getElementById("modeSel").value === "micro",
   };
 }
 
@@ -647,7 +647,7 @@ function syncIR() {
     document.getElementById("rDivIR").value = Math.round(window.__SISU_DivIRBase || 0);
   } else if (mode === "micro") {
     const micro = window.__MICRO_state || {};
-    const baseMicroBnc = Math.max(0, 0.66 * (micro.ca || 0) - (micro.cotTotal || 0));
+    const baseMicroBnc = Math.max(0, 0.66 * (micro.ca || 0)); // cotisations NON déductibles
     document.getElementById("rSal").value = 0;
     document.getElementById("rBnc").value = Math.round(baseMicroBnc);
     document.getElementById("rDivIR").value = 0;
@@ -686,6 +686,31 @@ function getNormalizedCashPref(raw) {
     return "you_plus_spouse";
   }
   return "you_only";
+}
+
+// helper : calcul du flux/conjoint selon son activité (micro ou autre), avec ACRE du/de la conjoint(e) seulement en année 1
+function computeSpouseCashAndBase(spouseGrossCA, includeSpouse, isFirstYear) {
+  if (!includeSpouse) {
+    return { spouseCash: 0, baseSpouse: 0 };
+  }
+  const spouseAct = document.getElementById("spouseActivity")?.value || "bnc";
+  // n’appliquer l’ACRE du/de la conjoint(e) que si c’est la première année
+  const spouseAcre = isFirstYear && document.getElementById("spouseACRE")?.checked;
+  if (["micro", "service", "commerce", "bnc", "cipav"].includes(spouseAct)) {
+    const actKey = spouseAct === "micro" ? "service" : spouseAct;
+    const baseRate = getMicroBaseRate(actKey);
+    const cfpRate = getCfpRate(actKey);
+    const socialRate = spouseAcre ? baseRate / 2 : baseRate;
+    const effRate = socialRate + cfpRate;
+    const cotSpouse = spouseGrossCA * effRate;
+    const spouseCash = spouseGrossCA - cotSpouse;
+    const baseSpouse = 0.66 * spouseGrossCA; // abattement 34 %
+    return { spouseCash: spouseCash, baseSpouse: baseSpouse };
+  } else {
+    const spouseCash = spouseGrossCA;
+    const baseSpouse = 0.66 * spouseGrossCA;
+    return { spouseCash: spouseCash, baseSpouse: baseSpouse };
+  }
 }
 
 /* TNS */
@@ -1818,11 +1843,10 @@ function projectYears() {
     var cashPref = getNormalizedCashPref(rawCashPref);
     var includeSpouse = cashPref === "you_plus_spouse";
 
-    // CA du conjoint (brut) avec croissance
-    var spouseGrossCA = spouseCA0 * Math.pow(1 + gSp, k);
-    // Encaissement réel et base imposable (abattement 34% équivalent à 0.66)
-    var spouseCash = includeSpouse ? 0.66 * spouseGrossCA : 0;
-    var baseSpouse = includeSpouse ? 0.66 * spouseGrossCA : 0;
+    // CA du conjoint (brut) avec croissance — caSpouse est annuel
+    var spouseGrossCA = val("caSpouse") * Math.pow(1 + gSp, k);
+    const isFirstYear = k === 0;
+    const { spouseCash, baseSpouse } = computeSpouseCashAndBase(spouseGrossCA, includeSpouse, isFirstYear);
 
     if (mode === "tns") {
       var res = solveRForFullRemu(CA, chargesPct, chargesFix0, PASS, includeCsg, CFP);
@@ -1838,7 +1862,7 @@ function projectYears() {
       var net = enc - IR;
       var netMens = net / 12;
       /* --- forcer cohérence année 1 avec bloc KPI --- */
-      if (k === 0) {
+      if (k === 0 && window.__IR_state && window.__IR_state.cashPref === cashPref && window.__IR_state.mode === mode) {
         RNI = RNI_Y1;
         IR = IR_Y1;
         net = Net_Y1;
@@ -1878,7 +1902,7 @@ function projectYears() {
       var enc2 = salaire + bnc + spouseCash;
       var net2 = enc2 - IR2;
       var netMens = net2 / 12;
-      if (k === 0) {
+      if (k === 0 && window.__IR_state && window.__IR_state.cashPref === cashPref && window.__IR_state.mode === mode) {
         RNI2 = RNI_Y1;
         IR2 = IR_Y1;
         net2 = Net_Y1;
@@ -1944,6 +1968,7 @@ function projectYears() {
           consec = 0;
         }
       }
+
       // warningText selon le nombre consécutif
       let warningText;
       if (consec >= 3) {
@@ -2000,7 +2025,7 @@ function projectYears() {
       var enc = netAvantIR + spouseCash;
       var net = enc - IR;
       var netMens = net / 12;
-      if (k === 0) {
+      if (k === 0 && window.__IR_state && window.__IR_state.cashPref === cashPref && window.__IR_state.mode === mode) {
         RNI = RNI_Y1;
         IR = IR_Y1;
         net = Net_Y1;
@@ -2056,7 +2081,7 @@ function projectYears() {
       var enc = salNet + divNet + (includeSpouse ? spouseCash : 0);
       var net = enc - IR;
       var netMens = net / 12;
-      if (k === 0) {
+      if (k === 0 && window.__IR_state && window.__IR_state.cashPref === cashPref && window.__IR_state.mode === mode) {
         RNI = RNI_Y1;
         IR = IR_Y1;
         net = Net_Y1;

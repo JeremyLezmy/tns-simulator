@@ -324,7 +324,7 @@
 > - https://www.urssaf.fr/accueil.html
 > - https://www.autoentrepreneur.urssaf.fr/portail/accueil.html (régime micro)
 > - https://www.economie.gouv.fr/particuliers/impots-et-fiscalite (documentation IR / PFU)
-> - https://sas-sasu.info/charges-sociales-president-sas-sasu/ Statut du président de SAS/SASU et régime social associé, traitement en assimilé salarié, décomposition des cotisations, taux effectifs, exonérations et précisions sur la lecture du brut/net pour les dirigeants.
+> - https://sas-sasu.info/charges-sociales-president-sas-sasu/ ; https://www.legalstart.fr/fiches-pratiques/sasu/charges-sociales-sasu/Statut du président de SAS/SASU et régime social associé, traitement en assimilé salarié, décomposition des cotisations, taux effectifs, exonérations et précisions sur la lecture du brut/net pour les dirigeants.
 
 ---
 

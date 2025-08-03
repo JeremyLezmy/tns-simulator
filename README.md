@@ -1,4 +1,4 @@
-# Simulateur de situation entrepreneuriale / salariat (France) v1.7 🇫🇷
+# Simulateur de situation entrepreneuriale / salariat (France) v1.7.1 🇫🇷
 
 ![badge-stable](https://img.shields.io/badge/version-stable-green)
 ![badge-france](https://img.shields.io/badge/pays-France-blue)
@@ -16,7 +16,7 @@
 
 <!-- ancre automatique des titres existants conservée -->
 
-- [Simulateur de situation entrepreneuriale / salariat (France) v1.7 🇫🇷](#simulateur-de-situation-entrepreneuriale--salariat-france-v17-)
+- [Simulateur de situation entrepreneuriale / salariat (France) v1.7.1 🇫🇷](#simulateur-de-situation-entrepreneuriale--salariat-france-v171-)
   - [Sommaire](#sommaire)
   - [Fonctionnalités majeures](#fonctionnalités-majeures)
   - [Prise en main rapide](#prise-en-main-rapide)

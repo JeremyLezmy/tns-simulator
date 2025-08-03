@@ -894,51 +894,59 @@ function toggleSISUView(view) {
   }
 }
 
+/**
+ * Calcul complet SASU à l’IS + rendu UI
+ * ‑ intègre désormais la section « Flux dirigeant » avec
+ *   Salaire brut (+), Charges salariales (‑) et Dividendes nets (+)
+ * ‑ conserve l’effet de surlignage (classe .stage-row) sur les jalons clés
+ */
 function calcSISU(triggerProj) {
-  var CA = val("sisuCA");
-  var chargesPct = val("sisuChargesPct");
-  var chargesFix = val("sisuChargesFix");
-  var marge = CA * (1 - chargesPct / 100) - chargesFix;
+  /* ---------- 1.  Entrées & bases ---------- */
+  const CA = val("sisuCA");
+  const chargesPct = val("sisuChargesPct");
+  const chargesFix = val("sisuChargesFix");
+  const marge = CA * (1 - chargesPct / 100) - chargesFix;
 
-  var smic = val("smicHour");
-  var salMode = document.getElementById("sisuSalaryMode").value;
-  var salBrut = salMode === "min4q" ? minSalary4Quarters(smic) : val("sisuSalaire");
+  const smic = val("smicHour");
+  const salMode = document.getElementById("sisuSalaryMode").value;
+  const salBrut = salMode === "min4q" ? minSalary4Quarters(smic) : val("sisuSalaire");
 
-  /* === cotisations dirigeant assimilé‑salarié === */
+  /* ---------- 2.  Cotisations dirigeant (assimilé salarié) ---------- */
   const deco = decomposeSASUPresident(salBrut);
   const totalSal = deco.totalSalarie;
   const totalEmp = deco.totalEmployeur;
-  const effRateSal = totalSal / salBrut; // ex : 0.225
-  const effRatePat = totalEmp / salBrut; // ex : 0.425
+  const effRateSal = totalSal / salBrut;
+  const effRatePat = totalEmp / salBrut;
 
-  // injecte les taux dans les champs désactivés (affichage)
+  /* Mise à jour des champs taux désactivés */
   document.getElementById("rateSal").value = (effRateSal * 100).toFixed(1);
   document.getElementById("ratePat").value = (effRatePat * 100).toFixed(1);
 
-  // coût employeur & net dirigeant
-  const costEmployeur = salBrut + totalEmp;
+  /* ---------- 3.  Comptabilité IS ---------- */
+  const costEmployeur = salBrut + totalEmp; // salaire brut + patronales
   const salNet = salBrut - totalSal;
+  const resImposable = Math.max(0, marge - costEmployeur);
 
-  var resImposable = Math.max(0, marge - costEmployeur);
+  const isRedThr = val("isRedThr");
+  const isRate = val("isRate") / 100;
+  const isRed = Math.min(resImposable, Math.max(0, isRedThr)) * 0.15;
+  const isNorm = Math.max(0, resImposable - Math.max(0, isRedThr)) * isRate;
+  const isTotal = isRed + isNorm;
 
-  var isRedThr = val("isRedThr");
-  var isRate = val("isRate") / 100;
-  var isRed = Math.min(resImposable, Math.max(0, isRedThr)) * 0.15;
-  var isNorm = Math.max(0, resImposable - Math.max(0, isRedThr)) * isRate;
-  var isTotal = isRed + isNorm;
+  const resApresIS = Math.max(0, resImposable - isTotal);
 
-  var resApresIS = Math.max(0, resImposable - isTotal);
-  var distRate = val("distRate") / 100;
-  var divBrut = resApresIS * distRate;
+  /* ---------- 4.  Dividendes ---------- */
+  const distRate = val("distRate") / 100;
+  const divBrut = resApresIS * distRate;
 
-  var divMode = document.getElementById("divMode").value;
-  var psDiv = 0.172 * divBrut;
-  var irDivPFU = 0.128 * divBrut;
-  var divNetPFU = divBrut - psDiv - irDivPFU;
-  var divIRBase = 0.6 * divBrut; // abattement 40 %
-  var divNetBareme = divBrut - psDiv; // IR payé via barème
+  const divMode = document.getElementById("divMode").value;
+  const psDiv = 0.172 * divBrut;
+  const irDivPFU = 0.128 * divBrut;
+  const divNetPFU = divBrut - psDiv - irDivPFU;
+  const divIRBase = 0.6 * divBrut;
+  const divNetBareme = divBrut - psDiv;
 
-  // Save globals for IR & Net
+  /* ---------- 5.  Persist globals (IR sync) ---------- */
   window.__SISU_SalBrut = salBrut;
   window.__SISU_NetSal = salNet;
   window.__SISU_DivBrut = divBrut;
@@ -948,78 +956,70 @@ function calcSISU(triggerProj) {
   window.__SISU_PS = psDiv;
   window.__SISU_DivMode = divMode;
 
-  // KPIs
-  document.getElementById("sisuKpiSal").textContent = fmtEUR(salBrut);
-  document.getElementById("sisuKpiRes").textContent = fmtEUR(resImposable);
-  document.getElementById("sisuKpiIS").textContent = fmtEUR(isTotal);
-  document.getElementById("sisuKpiDivBrut").textContent = fmtEUR(divBrut);
-  document.getElementById("sisuKpiDivNet").textContent = fmtEUR(window.__SISU_DivNet);
+  /* ---------- 6.  KPI tuiles ---------- */
+  safeSetText("sisuKpiSal", fmtEUR(salBrut));
+  safeSetText("sisuKpiRes", fmtEUR(resImposable));
+  safeSetText("sisuKpiIS", fmtEUR(isTotal));
+  safeSetText("sisuKpiDivBrut", fmtEUR(divBrut));
+  safeSetText("sisuKpiDivNet", fmtEUR(window.__SISU_DivNet));
 
-  /* ---- Tableau synthèse (vue globale) ---- */
-  var items = [
-    /* 1.  Marge */
+  /* =======================================================================
+     7.  TABLEAU SYNTHESE  (Vue globale)  – nouvelle structure
+     ======================================================================= */
+
+  /* A.  Parcours côté société */
+  const blocSociete = [
     ["CA", CA],
-    ["Charges externes (" + chargesPct.toFixed(1).replace(".", ",") + " %)", -CA * (chargesPct / 100)],
+    ["Charges externes (" + chargesPct.toFixed(1).replace(".", ",") + " %)", (-CA * chargesPct) / 100],
     ["Autres charges fixes", -chargesFix],
-    ["Marge avant rémunérations", marge], // surlignée plus bas
-
-    /* 2.  Rémunération */
+    ["Marge avant rémunérations", marge], // surlignée
     ["Salaire brut", -salBrut],
-    ["Charges salariales (" + (effRateSal * 100).toFixed(1).replace(".", ",") + " %)", -totalSal],
     ["Charges patronales (" + (effRatePat * 100).toFixed(1).replace(".", ",") + " %)", -totalEmp],
     ["Coût employeur total", -costEmployeur], // surlignée
-
-    /* 3.  IS */
     ["Résultat imposable IS", resImposable], // surlignée
     ["IS 15 % (jusqu’au seuil)", -isRed],
     ["IS taux normal", -isNorm],
     ["IS total", -isTotal],
-
     ["Résultat après IS", resApresIS], // surlignée
-
-    /* 4.  Dividendes */
-    ["Dividendes bruts (" + (distRate * 100).toFixed(0) + " % distrib.)", -divBrut],
-    ["Prélèv. sociaux sur dividendes (17,2 %)", -psDiv],
+    ["↦ <strong>Flux dirigeant</strong>", ""],
   ];
-  if (divMode === "pfu") {
-    items.push(["IR sur dividendes (PFU 12,8 %)", -irDivPFU]);
-    items.push(["Dividendes nets perçus (PFU)", divNetPFU]);
-  } else {
-    items.push(["Base imposable IR (abattement 40 %)", divIRBase]);
-    items.push(["Dividendes nets perçus (avant IR barème)", divNetBareme]);
-  }
 
-  var rows = items
-    .map(function (it) {
-      return "<tr><td>" + it[0] + '</td><td class="num">' + fmtEUR(it[1]) + "</td></tr>";
-    })
-    .join("");
+  /* B.  Flux dirigeant détaillé */
+  const blocDirigeant = [
+    ["Salaire brut (flux)", salBrut],
+    ["Charges salariales (" + (effRateSal * 100).toFixed(1).replace(".", ",") + " %)", -totalSal],
+    divMode === "pfu" ? ["Dividendes nets (PFU)", window.__SISU_DivNet] : ["Dividendes nets (avant IR barème)", window.__SISU_DivNet],
+  ];
+
   const stages = ["Marge avant rémunérations", "Coût employeur total", "Résultat imposable IS", "Résultat après IS"];
-  var rows = items
-    .map((it) => {
-      const cls = stages.includes(it[0]) ? "stage-row" : "";
-      return `<tr${cls ? ' class="' + cls + '"' : ""}><td>${it[0]}</td><td class="num">${fmtEUR(it[1])}</td></tr>`;
+
+  const rowsHtml = [...blocSociete, ...blocDirigeant]
+    .map(([label, value]) => {
+      const cls = stages.includes(label.replace(/<[^>]+>/g, "")) ? "stage-row" : "";
+      const vFmt = value === "" ? "" : fmtEUR(value);
+      return `<tr${cls ? ` class="${cls}"` : ""}><td>${label}</td><td class="num">${vFmt}</td></tr>`;
     })
     .join("");
 
-  document.getElementById("tblSISU").innerHTML = rows;
-  document.getElementById("sumSISUEnc").textContent = fmtEUR(salNet + window.__SISU_DivNet);
+  document.getElementById("tblSISU").innerHTML = rowsHtml;
 
-  // Sync IR if selected
-  if (document.getElementById("modeSel").value === "sasuIS") {
-    document.getElementById("syncSource").value = "auto";
-    // document.getElementById("cashOpts").value = "you_plus_spouse";
-  }
-  if (document.getElementById("syncSource").value === "auto") {
-    syncIR();
-  }
+  /* Encaissements dirigeant = Net salaire + Dividendes nets */
+  const encaisseDirigeant = salBrut - totalSal + window.__SISU_DivNet;
+  safeSetText("sumSISUEnc", fmtEUR(encaisseDirigeant));
+
+  /* ---------- 8.  Sync IR + projection ---------- */
+  if (document.getElementById("modeSel").value === "sasuIS") document.getElementById("syncSource").value = "auto";
+
+  if (document.getElementById("syncSource").value === "auto") syncIR();
   if (triggerProj) projectYears();
-  /* ---------- tableau ventilation charges ---------- */
+
+  /* -----------------------------------------------------------------------
+     9.  Tableau ventilation des charges (inchangé)
+     ----------------------------------------------------------------------- */
   (function buildSISUChargesTable() {
     const tbody = document.querySelector("#tblSISUCharges tbody");
     let rows = "";
 
-    /* mêmes catégories que pour le mode Salariat */
     const catMap = {
       Santé: ["Assurance maladie", "CSG imposable", "CSG non‑imposable", "CRDS"],
       Retraite: [
@@ -1038,7 +1038,7 @@ function calcSISU(triggerProj) {
 
     const printed = new Set();
 
-    /* catégories avec séparateur */
+    /* catégories (avec lignes de séparation) */
     for (const [cat, labels] of Object.entries(catMap)) {
       rows += `<tr class="cat-row"><td colspan="6">${cat}</td></tr>`;
       labels.forEach((label) => {
@@ -1048,38 +1048,41 @@ function calcSISU(triggerProj) {
         const pctSal = p.base ? (p.salarie / p.base) * 100 : 0;
         const pctEmp = p.base ? (p.employeur / p.base) * 100 : 0;
         rows += `
-        <tr>
-          <td>${label}</td>
-          <td class="num">${fmtEUR(p.base)}</td>
-          <td class="num">${pctSal.toFixed(2).replace(".", ",")} %</td>
-          <td class="num">${fmtEUR(p.salarie)}</td>
-          <td class="num">${pctEmp.toFixed(2).replace(".", ",")} %</td>
-          <td class="num">${fmtEUR(p.employeur)}</td>
-        </tr>`;
+          <tr>
+            <td>${label}</td>
+            <td class="num">${fmtEUR(p.base)}</td>
+            <td class="num">${pctSal.toFixed(2).replace(".", ",")} %</td>
+            <td class="num">${fmtEUR(p.salarie)}</td>
+            <td class="num">${pctEmp.toFixed(2).replace(".", ",")} %</td>
+            <td class="num">${fmtEUR(p.employeur)}</td>
+          </tr>`;
       });
     }
-    /* postes non classés éventuels */
+
+    /* éventuels postes “orphelins” */
     for (const label in deco.breakdown) {
       if (printed.has(label)) continue;
       const p = deco.breakdown[label];
       const pctSal = p.base ? (p.salarie / p.base) * 100 : 0;
       const pctEmp = p.base ? (p.employeur / p.base) * 100 : 0;
       rows += `
-      <tr>
-        <td>${label}</td>
-        <td class="num">${fmtEUR(p.base)}</td>
-        <td class="num">${pctSal.toFixed(2).replace(".", ",")} %</td>
-        <td class="num">${fmtEUR(p.salarie)}</td>
-        <td class="num">${pctEmp.toFixed(2).replace(".", ",")} %</td>
-        <td class="num">${fmtEUR(p.employeur)}</td>
-      </tr>`;
+        <tr>
+          <td>${label}</td>
+          <td class="num">${fmtEUR(p.base)}</td>
+          <td class="num">${pctSal.toFixed(2).replace(".", ",")} %</td>
+          <td class="num">${fmtEUR(p.salarie)}</td>
+          <td class="num">${pctEmp.toFixed(2).replace(".", ",")} %</td>
+          <td class="num">${fmtEUR(p.employeur)}</td>
+        </tr>`;
     }
+
     tbody.innerHTML = rows;
-    /* footer */
+
+    /* footer totaux */
     safeSetText("sisuCharges-base", fmtEUR(salBrut));
-    safeSetText("sisuCharges-sal-pct", (effRateSal * 100).toFixed(1).replace(".", ",") + " %");
+    safeSetText("sisuCharges-sal-pct", (effRateSal * 100).toFixed(1).replace(".", ",") + " %");
     safeSetText("sisuCharges-sal-mt", fmtEUR(totalSal));
-    safeSetText("sisuCharges-emp-pct", (effRatePat * 100).toFixed(1).replace(".", ",") + " %");
+    safeSetText("sisuCharges-emp-pct", (effRatePat * 100).toFixed(1).replace(".", ",") + " %");
     safeSetText("sisuCharges-emp-mt", fmtEUR(totalEmp));
   })();
 }

@@ -52,6 +52,18 @@ document.addEventListener("DOMContentLoaded", function () {
   // restore rounding etc...
   showNote("howto");
   updateAll();
+  // auto‑recalc si changement activité ou ACRE (sélecteurs déjà marqués dans le HTML)
+  document.getElementById("microActivity")?.addEventListener("change", () => calcMICRO(true));
+  document.getElementById("microACRE")?.addEventListener("change", () => calcMICRO(true));
+});
+
+document.getElementById("spouseActivity")?.addEventListener("change", () => {
+  calcIR();
+  projectYears();
+});
+document.getElementById("spouseACRE")?.addEventListener("change", () => {
+  calcIR();
+  projectYears();
 });
 
 function setPinUI(isPinned) {
@@ -311,6 +323,74 @@ const MICRO_THRESHOLDS = {
   commerce: 188700, // vente de marchandises (y compris hébergement)
 };
 
+/* Taux globaux micro-sociaux 2026 (hors formation, CFP gérée séparément) */
+const MICRO_BASE_RATES = {
+  commerce: 0.212, // Prestations BIC / service 21,2 % (BIC et services partagent la même répartition ci-dessous)
+  service: 0.212,
+  bnc: 0.261, // Prof. libérales non réglementées (BNC) 26,1 %
+  cipav: 0.232, // Prof. libérales CIPAV 23,2 %
+};
+
+/* CFP (formation) à ajouter en plus du reste */
+const MICRO_CFP = {
+  commerce: 0.001, // 0,1 %
+  service: 0.003, // 0,3 %
+  bnc: 0.002, // 0,2 %
+  cipav: 0.002, // 0,2 %
+};
+
+/* Ventilation officielle des cotisations sociales (hors CFP) par type */
+const MICRO_SOCIAL_WEIGHTS_BY_ACTIVITY = {
+  // vente de marchandises / hébergement et prestations commerciales/artisanales (BIC)
+  commerce: {
+    maladie: 0.089, // maladie-maternité
+    invalidite: 0.031, // invalidité-décès
+    retBase: 0.418, // retraite de base
+    retCompl: 0.165, // retraite complémentaire
+    csg: 0.297, // CSG/CRDS
+  },
+  service: {
+    maladie: 0.089,
+    invalidite: 0.031,
+    retBase: 0.418,
+    retCompl: 0.165,
+    csg: 0.297,
+  },
+  // libérales non réglementées (BNC) réforme 2026 : ventilation que tu as donnée
+  bnc: {
+    maladie: 0.03, // maladie-maternité
+    invalidite: 0.0325, // invalidité-décès
+    retBase: 0.4485, // retraite de base
+    retCompl: 0.177, // retraite complémentaire
+    csg: 0.312, // CSG/CRDS
+  },
+  // CIPAV : détails très fins (somme = 1)
+  cipav: {
+    maladie: 0.093, // maladie-maternité
+    prestations_maladie: 0.009, // prestations maladie en espèces (on peut fusionner avec maladie si tu veux, sinon afficher séparément)
+    invalidite: 0.014, // invalidité-décès
+    vieillesse_base_1: 0.2345, // vieillesse de base 1°
+    vieillesse_base_2: 0.0535, // vieillesse de base 2°
+    vieillesse_compl: 0.256, // vieillesse complémentaire
+    csg: 0.34, // CSG/CRDS
+  },
+};
+
+/* helpers */
+function getMicroBaseRate(act) {
+  return MICRO_BASE_RATES[act] ?? MICRO_BASE_RATES.service;
+}
+function getCfpRate(act) {
+  return MICRO_CFP[act] ?? 0;
+}
+function getSocialWeights(act) {
+  return MICRO_SOCIAL_WEIGHTS_BY_ACTIVITY[act] || MICRO_SOCIAL_WEIGHTS_BY_ACTIVITY.service;
+}
+// Taux global micro-social (part sociale + CFP)
+function getMicroRate(act) {
+  return getMicroBaseRate(act) + getCfpRate(act);
+}
+
 /* NOTES */
 var NOTES = {
   howto:
@@ -342,9 +422,11 @@ var NOTES = {
     "<li><b>Barème IR 2025</b> (revenus 2024) — Service-Public : <a target='_blank' rel='noopener' href='https://www.service-public.fr/particuliers/actualites/A18045'>A18045</a> et brochure pratique IR 2025 sur impots.gouv.fr : <a target='_blank' rel='noopener' href='https://www.impots.gouv.fr/portail/files/media/1_metier/2_particulier/documentation/brochure/ir_2025/ir_2025.pdf'>IR 2025</a></li>" +
     "<li><b>PASS 2025</b> = 47 100 € — Service-Public : <a target='_blank' rel='noopener' href='https://www.service-public.fr/particuliers/actualites/A15386'>A15386</a></li>" +
     "<li><b>Seuils micro-entreprise</b> et règles de dépassement — Service-Public : <a target='_blank' rel='noopener' href='https://entreprendre.service-public.fr/vosdroits/F32353'>Seuil CA Micro</a></li>" +
+    "<li><b>Articles définissant le régime micro et la ventilation des cotisations</b> — Légifrance : <a target='_blank' rel='noopener' href='https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000049624097'>Article D613-4 (catégories)</a> et <a target='_blank' rel='noopener' href='https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000049625405'>Article D613-6 (ventilation des cotisations)</a></li>" +
+    "<li><b>Réforme BNC au 1er janvier 2026</b> — Décret n°2024-484 du 30 mai 2024 (modifications des règles applicables aux professions libérales non réglementées)</b> : <a target='_blank' rel='noopener' href='https://www.legifrance.gouv.fr/jorf/id/JORFTEXT0000000000000000'>Décret n°2024-484</a> (à remplacer par la bonne URL une fois confirmée)</li>" +
     "<li><b>IS PME</b> 15 % jusqu’à 42 500 € — Service-Public Pro : <a target='_blank' rel='noopener' href='https://entreprendre.service-public.fr/vosdroits/F23575'>F23575</a></li>" +
     "<li><b>Dividendes</b> : PFU ou barème + abattement 40 % — Service-Public Pro : <a target='_blank' rel='noopener' href='https://entreprendre.service-public.fr/vosdroits/F32963'>F32963</a> et particulier : <a target='_blank' rel='noopener' href='https://www.service-public.fr/particuliers/vosdroits/F34913/1_7'>F34913</a></li>" +
-    "<li><b>Cotisations URSSAF</b> (TNS, salariat, employeur) — URSSAF liste des cotisations : <a target='_blank' rel='noopener' href='https://www.urssaf.fr/portail/home/employeur/cotisations/liste-cotisations.html'>Liste cotisations URSSAF</a></li>" +
+    "<li><b>Cotisations URSSAF</b> (TNS, micro, salariat) — URSSAF liste des cotisations : <a target='_blank' rel='noopener' href='https://www.urssaf.fr/portail/home/employeur/cotisations/liste-cotisations.html'>Liste cotisations URSSAF</a></li>" +
     "<li><b>Charges patronales</b> : synthèse & méthode de calcul — L'Expert-Comptable : <a target='_blank' rel='noopener' href='https://www.l-expert-comptable.com/a/532287-montant-et-calcul-des-charges-patronales.html'>Montant et calcul des charges patronales</a></li>" +
     "<li><b>Brut → Net salarié</b> : calcul détaillé — L'Expert-Comptable : <a target='_blank' rel='noopener' href='https://www.l-expert-comptable.com/calculateurs/calculer-le-salaire-brut-net.html'>Calculateur brut/net</a> • PayFit : <a target='_blank' rel='noopener' href='https://payfit.com/fr/fiches-pratiques/charges-salariales/'>Charges salariales</a></li>" +
     "<li><b>Charges patronales (fiche explicative)</b> — PayFit : <a target='_blank' rel='noopener' href='https://payfit.com/fr/fiches-pratiques/charges-patronales/'>Charges patronales</a></li>" +
@@ -440,8 +522,13 @@ function calcIR() {
     rDivIR = val("rDivIR");
   }
 
-  // base conjoint conditionnée
-  var baseSpouse = includeSpouse ? 0.66 * (caSp * 12) : 0;
+  /* ----- Conjoint(e) micro ----- */
+  const spouseAct = document.getElementById("spouseActivity")?.value || "bnc";
+  const spouseAcre = document.getElementById("spouseACRE")?.checked;
+  const spouseRate0 = getMicroRate(spouseAct);
+  const spouseRate = spouseAcre ? spouseRate0 / 2 : spouseRate0;
+  const cotSpouse = includeSpouse ? caSp * 12 * spouseRate : 0;
+  var baseSpouse = includeSpouse ? 0.66 * caSp * 12 : 0; // abattement 34 %
 
   var dedCsg = 0;
   if (document.getElementById("deductCsg").value === "1" && window.__A_tns) {
@@ -476,7 +563,7 @@ function calcIR() {
   /* Encaissement net du/de la conjoint(e) :
        – micro‑BNC : 66 % du CA (= même base que RNI)
        – sinon     : 100 % (adapter ici si vous modélisez d’autres cas) */
-  var spouseCash = includeSpouse ? 0.66 * caSp * 12 : 0;
+  var spouseCash = includeSpouse ? caSp * 12 - cotSpouse : 0;
 
   if (useManual) {
     // === Mode Manuel : on s’appuie sur vos champs saisis ===
@@ -490,7 +577,8 @@ function calcIR() {
     } else if (mainMode === "sasuIS") {
       enc += (window.__SISU_NetSal || 0) + (window.__SISU_DivNet || 0);
     } else if (mainMode === "micro") {
-      enc += window.__MICRO_state?.ca || 0;
+      const m = window.__MICRO_state || {};
+      enc += (m.ca || 0) - (m.cotTotal || 0); // CA – cotisations
     } else if (mainMode === "salarie") {
       enc += window.__SALARIE_state?.netAvantIR || 0;
     } else {
@@ -544,13 +632,14 @@ function syncIR() {
     document.getElementById("rDivIR").value = Math.round(window.__SISU_DivIRBase || 0);
   } else if (mode === "micro") {
     const micro = window.__MICRO_state || {};
+    const baseMicroBnc = Math.max(0, 0.66 * (micro.ca || 0) - (micro.cotTotal || 0));
     document.getElementById("rSal").value = 0;
-    document.getElementById("rBnc").value = Math.round(0.66 * (micro.ca || 0));
+    document.getElementById("rBnc").value = Math.round(baseMicroBnc);
     document.getElementById("rDivIR").value = 0;
   } else if (mode === "salarie") {
-    const salImp = 0.9 * (window.__SALARIE_state?.brutTotal || 0);
-    document.getElementById("rSal").value = Math.round(salImp);
-    document.getElementById("rBnc").value = 0;
+    const micro = window.__MICRO_state || {};
+    document.getElementById("rSal").value = 0;
+    document.getElementById("rBnc").value = Math.round(0.66 * (micro.ca || 0)); // 34 % d’abattement
     document.getElementById("rDivIR").value = 0;
   }
 
@@ -845,32 +934,139 @@ function calcMICRO(triggerProj) {
   var detailEl = document.getElementById("microWarningDetail");
   var exceeds = ca > threshold;
 
-  // Stocker état pour projection
+  // conserver l'ancien état pour détecter répétition de dépassement
+  const prevState = window.__MICRO_state || {};
+  const prevConsec = prevState.consecutiveExceeds || 0;
+  // calculer nouveaux dépassements consécutifs
+  const consecutiveExceeds = exceeds ? prevConsec + 1 : 0;
+
+  // mettre à jour l'état courant (on écrase après avoir lu prevExceeds)
   window.__MICRO_state = {
-    ca: ca,
-    grow: grow,
-    activity: activity,
-    threshold: threshold,
-    exceeds: exceeds,
+    ca,
+    grow,
+    activity,
+    threshold,
+    exceeds,
+    acreOn: document.getElementById("microACRE").checked,
+    consecutiveExceeds, // nombre de dépassements consécutifs jusqu'à cette année
+    prevExceeds: !!prevState.exceeds,
   };
 
-  document.getElementById("microKpiCA").textContent = fmtEUR(ca);
+  /* === Cotisations, CFP & KPI =================================== */
+  const acreOn = window.__MICRO_state.acreOn;
+  // baseRate ici = part sociale hors CFP (ex : 0.261 pour BNC, 0.212 pour service/commerce, 0.232 pour CIPAV)
+  const baseRate = getMicroBaseRate(activity);
+  const cfpRate = getCfpRate(activity); // contribution formation
+  // application de l’ACRE uniquement sur la part sociale (hors CFP)
+  const socialRateAfterAcre = acreOn ? baseRate / 2 : baseRate;
+  const effRate = socialRateAfterAcre + cfpRate; // taux total effectif (social + CFP)
 
-  // Première année : tolérance si dépassement unique
+  const cotTotal = ca * effRate;
+  const remuneration = ca - cotTotal;
+  Object.assign(window.__MICRO_state, {
+    effRate,
+    cotTotal,
+    remuneration,
+    cfpRate,
+    socialRate: socialRateAfterAcre, // utile pour reconstruction dans projection si besoin
+    baseSocialRate: baseRate,
+  });
+
+  /* === Warning / statut de seuil === */
   var message = "";
   if (exceeds) {
-    message = "⚠️ CA annuel dépasse le seuil de " + fmtEUR(threshold) + ' pour l’activité "' + activity + '".';
-    warningEl.textContent = "Dépassement (à surveiller)";
-    warningEl.classList.add("warn");
-    detailEl.innerHTML =
-      "Vous dépassez le seuil autorisé pour la micro-entreprise cette année. Si ce dépassement se répète deux années consécutives, vous passerez automatiquement au régime réel au 1er janvier suivant. Voir Notes pour les règles complètes.";
+    if (consecutiveExceeds >= 3) {
+      // trois (ou plus) années consécutives
+      message = "❌ Trois dépassements consécutifs : sortie du régime micro.";
+      warningEl.textContent = "Sortie micro"; // tu peux adapter la wording
+      warningEl.classList.add("warn");
+      warningEl.classList.remove("ok");
+      detailEl.innerHTML =
+        "Vous dépassez le seuil pour la troisième année consécutive : sortie automatique du régime micro. Voir Notes pour les règles complètes.";
+    } else if (consecutiveExceeds === 2) {
+      // deux années d'affilée (dernier toléré)
+      message = "⚠️ Deux années d’affilée (dernier toléré).";
+      warningEl.textContent = "Dépassement répété";
+      warningEl.classList.add("warn");
+      warningEl.classList.remove("ok");
+      detailEl.innerHTML =
+        "C’est le deuxième dépassement consécutif. C’est le dernier toléré : un troisième dépasserment entraînera la sortie du régime micro. Voir Notes pour les règles complètes.";
+    } else {
+      // premier dépassement
+      message = "⚠️ Dépassement cette année.";
+      warningEl.textContent = "Dépassement (à surveiller)";
+      warningEl.classList.add("warn");
+      warningEl.classList.remove("ok");
+      detailEl.innerHTML =
+        "Vous dépassez le seuil autorisé pour la micro-entreprise cette année. Si ce dépassement se répète deux années consécutives, vous serez en situation de dernier toléré, et un troisième entraînera la sortie. Voir Notes pour les règles complètes.";
+    }
   } else {
-    message = "✅ CA sous le seuil de " + fmtEUR(threshold) + ".";
+    message = "✅ Sous le seuil.";
     warningEl.textContent = "OK";
     warningEl.classList.remove("warn");
     warningEl.classList.add("ok");
     detailEl.textContent = "";
   }
+
+  /* === Tableau détaillé ========================================= */
+  let rows = "",
+    pctTot = 0;
+  const lbl = {
+    maladie: "Assurance maladie‑maternité",
+    ij: "Indemnités journalières",
+    retBase: "Retraite de base",
+    retCompl: "Retraite complémentaire",
+    invalidite: "Assurance invalidité‑décès",
+    alloc: "Allocations familiales",
+    csg: "CSG/CRDS",
+  };
+  const socialWeights = getSocialWeights(activity); // répartition hors CFP pour l’activité
+  for (const k in socialWeights) {
+    // pour CIPAV on peut avoir des sous-branches spécifiques (ex. vieillesse_base_1/2)
+    let labelKey = k;
+    let displayLabel;
+    if (activity === "cipav") {
+      const cipavLabels = {
+        maladie: "Assurance maladie-maternité",
+        prestations_maladie: "Prestations maladie en espèces",
+        invalidite: "Assurance invalidité-décès",
+        vieillesse_base_1: "Vieillesse de base 1°",
+        vieillesse_base_2: "Vieillesse de base 2°",
+        vieillesse_compl: "Retraite  complémentaire",
+        csg: "CSG/CRDS",
+      };
+      displayLabel = cipavLabels[k] || k;
+    } else {
+      const commonLabels = {
+        maladie: "Assurance maladie-maternité",
+        invalidite: "Assurance invalidité-décès",
+        retBase: "Retraite de base",
+        retCompl: "Retraite complémentaire",
+        csg: "CSG/CRDS",
+      };
+      displayLabel = commonLabels[k] || k;
+    }
+
+    const pct = socialWeights[k] * (acreOn ? baseRate / 2 : baseRate); // part proportionnelle de la composante sociale après ACRE
+    const amt = ca * pct;
+    pctTot += pct;
+    rows += `<tr><td>${displayLabel}</td><td class="num">${(pct * 100).toFixed(2)} %</td><td class="num">${fmtEUR(amt)}</td></tr>`;
+  }
+
+  /* CFP */
+  rows += `<tr><td>Contribution formation prof.</td><td class="num">${(cfpRate * 100).toFixed(2)} %</td><td class="num">${fmtEUR(
+    ca * cfpRate
+  )}</td></tr>`;
+  pctTot += cfpRate;
+
+  document.getElementById("tblMicro").innerHTML = rows;
+  safeSetText("sumMicroPct", (pctTot * 100).toFixed(2) + " %");
+  safeSetText("sumMicroTot", fmtEUR(cotTotal));
+
+  /* KPI */
+  safeSetText("microKpiCA", fmtEUR(ca));
+  safeSetText("microKpiCot", fmtEUR(cotTotal));
+  safeSetText("microKpiRem", fmtEUR(remuneration));
 
   log("calcMICRO — CA=" + ca.toFixed(0) + " activité=" + activity + " seuil=" + threshold + (exceeds ? " (dépassement)" : ""));
   if (triggerProj) projectYears();
@@ -1435,91 +1631,75 @@ function projectYears() {
       sumIR += IR2;
       sumNet += net2;
     } else if (mode === "micro") {
-      var microState = window.__MICRO_state || {};
-      // gérer correctement la CA micro avec sa propre croissance
-      var prevCA =
-        k === 0
-          ? microState.ca
-          : window.__MICRO_projection && window.__MICRO_projection.caHistory
-          ? window.__MICRO_projection.caHistory[k - 1]
-          : microState.ca;
-      var caYear = prevCA * (k === 0 ? 1 : 1 + (microState.grow || 0));
-      if (!window.__MICRO_projection) window.__MICRO_projection = { exceedHistory: [], caHistory: [] };
-      window.__MICRO_projection.caHistory[k] = caYear;
+      const m0 = window.__MICRO_state || {};
+      const baseRate = getMicroBaseRate(m0.activity); // part sociale hors CFP
+      const cfpRate = getCfpRate(m0.activity);
 
-      var exceeds = caYear > (microState.threshold || MICRO_THRESHOLDS.service);
-      /* base taxable : 66 % du CA micro + évent. conjoint */
-      var RNI = Math.max(0, 0.66 * caYear + baseSpouse);
-      var irRes = computeTaxFromBareme(RNI / parts, indexBar);
-      var IR = irRes.tax * parts;
-      var enc = caYear + spouseCash;
-      var net = enc - IR;
-      var netMens = net / 12;
-      if (k === 0) {
-        RNI = RNI_Y1;
-        IR = IR_Y1;
-        net = Net_Y1;
-        netMens = NetMens_Y1;
-      }
+      // CA année k
+      const caYear = k === 0 ? m0.ca : m0.ca * Math.pow(1 + (m0.grow || 0), k);
 
-      // historique dépassement (comme précédemment)
-      if (!window.__MICRO_projection) {
-        window.__MICRO_projection = { exceedHistory: [] };
-      }
-      var prevExceed = exceeds;
-      window.__MICRO_projection.exceedHistory[k] = prevExceed;
+      // application ACRE sur la part sociale uniquement en année 0
+      const socialRateY = k === 0 && m0.acreOn ? baseRate / 2 : baseRate;
+      const effRateY = socialRateY + cfpRate; // totale (social [+ ACRE éventuel] + CFP)
+      const cotY = caYear * effRateY;
 
-      var blocked = false;
-      if (
-        k >= 2 &&
-        window.__MICRO_projection.exceedHistory[k - 2] &&
-        window.__MICRO_projection.exceedHistory[k - 1] &&
-        window.__MICRO_projection.exceedHistory[k]
-      ) {
-        blocked = true;
-      }
+      // Encaissement réel
+      const encY = caYear - cotY + spouseCash;
 
-      var extraClass = blocked ? ' class="proj-blocked"' : "";
-      var warningText = "";
-      if (blocked) {
-        warningText = "❌ Trois dépassements consécutifs : sortie du régime micro.";
-      } else if (prevExceed) {
-        var consec = k >= 1 && window.__MICRO_projection.exceedHistory[k - 1] ? 2 : 1;
-        if (consec === 2) {
-          warningText = "⚠️ Deux années d’affilée (dernier toléré).";
+      // Base IR (abattement 34%)
+      const RNI = Math.max(0, 0.66 * caYear + baseSpouse);
+      const irResY = computeTaxFromBareme(RNI / parts, indexBar);
+      const IRY = irResY.tax * parts;
+      const netY = encY - IRY;
+
+      // Première ligne = cohérence KPI année 1
+      const netMensY = k === 0 ? NetMens_Y1 : netY / 12;
+      const RNI_Y = k === 0 ? RNI_Y1 : RNI;
+
+      // calcul des dépassements consécutifs jusqu’à l’année k
+      const threshold = m0.threshold || 0;
+      let consec = 0;
+      for (let j = 0; j <= k; j++) {
+        const caJ = j === 0 ? m0.ca : m0.ca * Math.pow(1 + (m0.grow || 0), j);
+        if (caJ > threshold) {
+          consec++;
         } else {
-          warningText = "⚠️ Dépassement cette année.";
+          consec = 0;
         }
+      }
+      // warningText selon le nombre consécutif
+      let warningText;
+      if (consec >= 3) {
+        warningText = "❌ Trois dépassements consécutifs : sortie du régime micro.";
+      } else if (consec === 2) {
+        warningText = "⚠️ Deux années d’affilée (dernier toléré).";
+      } else if (consec === 1) {
+        warningText = "⚠️ Dépassement cette année.";
       } else {
         warningText = "✅ Sous le seuil.";
       }
-
-      var tr = `
-      <tr${extraClass}>
+      const tr = `
+      <tr>
         <td>${year}</td>
         <td class="num">${fmtEUR(PASS)}</td>
         <td class="num">${fmtEUR(SMIC)}</td>
-        <td>Micro-entreprise</td>
+        <td>Micro‑entreprise</td>
         <td class="num">${fmtEUR(caYear)}</td>
-        <td class="num">–</td>
-        <td class="num">–</td>
-        <td class="num">–</td>
-        <td class="num">–</td>
-        <td>–</td>
-        <td class="num">–</td>
-        <td class="num">${fmtEUR(RNI)}</td>
-        <td class="num">${fmtEUR(IR)}</td>
-        <td class="num">${fmtEUR(netMens)}</td>
-        <td class="num">${fmtEUR(net)}</td>
+        <td class="num">–</td><td class="num">–</td><td class="num">–</td><td class="num">–</td><td>–</td>
+        <td class="num">${fmtEUR(cotY)}</td>
+        <td class="num">${fmtEUR(RNI_Y)}</td>
+        <td class="num">${fmtEUR(IRY)}</td>
+        <td class="num">${fmtEUR(netMensY)}</td>
+        <td class="num">${fmtEUR(k === 0 ? Net_Y1 : netY)}</td>
         <td>${warningText}</td>
-      </tr>
-      `.trim();
+      </tr>`.trim();
       tbody.innerHTML += tr;
+
       sumCA += caYear;
-      sumCot += 0;
-      sumRNI += RNI;
-      sumIR += IR;
-      sumNet += net;
+      sumCot += cotY;
+      sumRNI += RNI_Y;
+      sumIR += IRY;
+      sumNet += k === 0 ? Net_Y1 : netY;
     } else if (mode === "salarie") {
       // reconstruire dynamiquement l'état salarial avec croissance
       var statut = document.getElementById("statutSal").value;

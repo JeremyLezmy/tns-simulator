@@ -405,7 +405,7 @@ td.num {
 }
 
 .hint {
-  font-size: 8px;
+  font-size: 10px;
   color: var(--muted);
   margin-top: 4px;
 }

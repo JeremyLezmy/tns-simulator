@@ -1,4 +1,4 @@
-# Simulateur TNS · SASU · Salariat & IR v1.5.1 🇫🇷
+# Simulateur TNS · SASU · Salariat & IR v1.6 🇫🇷
 
 > **Tout-en-un :** calculez en quelques secondes vos rémunérations nettes, cotisations,
 > impôt sur le revenu (IR) du foyer et comparez **TNS**, **SASU (IR ou IS)**,
@@ -9,7 +9,7 @@
 
 ## Sommaire
 
-- [Simulateur TNS · SASU · Salariat \& IR v1.5.1 🇫🇷](#simulateur-tns--sasu--salariat--ir-v151-)
+- [Simulateur TNS · SASU · Salariat \& IR v1.6 🇫🇷](#simulateur-tns--sasu--salariat--ir-v16-)
   - [Sommaire](#sommaire)
   - [Fonctionnalités majeures](#fonctionnalités-majeures)
   - [Prise en main rapide](#prise-en-main-rapide)
@@ -24,6 +24,10 @@
   - [Détail des variables fiscales et flux conjoints](#détail-des-variables-fiscales-et-flux-conjoints)
   - [Sources officielles \& barèmes (avec URLs)](#sources-officielles--barèmes-avec-urls)
     - [Barèmes, seuils et variables standard](#barèmes-seuils-et-variables-standard)
+    - [Ventilation des cotisations micro-sociales (hors formation)](#ventilation-des-cotisations-micro-sociales-hors-formation)
+      - [1. BNC (professions libérales non réglementées, réforme 2026 — taux total 26,1 %)](#1-bnc-professions-libérales-non-réglementées-réforme-2026--taux-total-261-)
+      - [2. Prestations commerciales / artisanales et vente de marchandises (BIC) \& services (taux global micro-social : 21,2 % pour BIC/service, 12,3 % pour commerce/vente)](#2-prestations-commerciales--artisanales-et-vente-de-marchandises-bic--services-taux-global-micro-social--212--pour-bicservice-123--pour-commercevente)
+      - [3. CIPAV (professions libérales réglementées — taux total 23,2 % hors CFP)](#3-cipav-professions-libérales-réglementées--taux-total-232--hors-cfp)
   - [FAQ \& avertissements](#faq--avertissements)
   - [Développement](#développement)
     - [Prérequis](#prérequis)
@@ -213,6 +217,60 @@
 > - https://www.urssaf.fr/accueil.html
 > - https://www.autoentrepreneur.urssaf.fr/portail/accueil.html (régime micro)
 > - https://www.economie.gouv.fr/particuliers/impots-et-fiscalite (documentation IR / PFU)
+
+---
+
+### Ventilation des cotisations micro-sociales (hors formation)
+
+La part globale prélevée en micro-entreprise (BIC/BNC/CIPAV) se décompose selon des branches définies réglementairement. Pour les professions libérales non CIPAV (BNC), la réforme entrée en vigueur au 1er janvier 2026 modifie la répartition. Les références principales sont les articles D613-4 et D613-6 du Code de la sécurité sociale, et pour les BNC la réforme issue du décret n°2024-484 du 30 mai 2024.
+
+#### 1. BNC (professions libérales non réglementées, réforme 2026 — taux total 26,1 %)
+
+| Branche                                                          | Répartition officielle (%) | Part effective sur le CA (≈ 26,1 % × part) |
+| ---------------------------------------------------------------- | -------------------------- | ------------------------------------------ |
+| Assurance maladie-maternité                                      | 3,00 %                     | ≈ 0,783 %                                  |
+| Invalidité-décès                                                 | 3,25 %                     | ≈ 0,848 %                                  |
+| Retraite de base                                                 | 44,85 %                    | ≈ 11,71 %                                  |
+| Retraite complémentaire                                          | 17,70 %                    | ≈ 4,62 %                                   |
+| CSG/CRDS (dont une part est déductible selon règles spécifiques) | 31,20 %                    | ≈ 8,14 %                                   |
+
+_Sources :_
+
+- Article D613-6 du Code de la sécurité sociale (ventilation des cotisations) : https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000049625405
+- Décret n°2024-484 du 30 mai 2024 (réforme BNC 2026) : _URL à renseigner depuis Légifrance_
+
+#### 2. Prestations commerciales / artisanales et vente de marchandises (BIC) & services (taux global micro-social : 21,2 % pour BIC/service, 12,3 % pour commerce/vente)
+
+| Branche                     | Répartition approximative (%) | Part effective sur le CA (selon taux global)                                |
+| --------------------------- | ----------------------------- | --------------------------------------------------------------------------- |
+| Assurance maladie-maternité | 8,9 %                         | 21,2 % × 8,9 % ≈ 1,89 % (BIC/service) ou 12,3 % × 8,9 % ≈ 1,09 % (commerce) |
+| Invalidité-décès            | 3,1 %                         | ≈ 0,66 % (BIC/service) ou ≈ 0,38 % (commerce)                               |
+| Retraite de base            | 41,8 %                        | ≈ 8,87 % (BIC/service) ou ≈ 5,14 % (commerce)                               |
+| Retraite complémentaire     | 16,5 %                        | ≈ 3,50 % (BIC/service) ou ≈ 2,03 % (commerce)                               |
+| CSG/CRDS                    | 29,7 %                        | ≈ 6,30 % (BIC/service) ou ≈ 3,65 % (commerce)                               |
+
+_Sources :_
+
+- Article D613-6 du Code de la sécurité sociale (ventilation des cotisations) : https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000049625405
+
+> Remarque : pour les activités de vente de marchandises / hébergement, le taux global est inférieur (12,3 % hors CFP) ; la ventilation interne utilise les mêmes proportions appliquées à ce taux réduit.
+
+#### 3. CIPAV (professions libérales réglementées — taux total 23,2 % hors CFP)
+
+| Branche                        | Répartition officielle (%) |
+| ------------------------------ | -------------------------- |
+| Maladie-maternité              | 9,3 %                      |
+| Prestations maladie en espèces | 0,9 %                      |
+| Invalidité-décès               | 1,4 %                      |
+| Vieillesse de base 1°          | 23,45 %                    |
+| Vieillesse de base 2°          | 5,35 %                     |
+| Retraite complémentaire        | 25,6 %                     |
+| CSG/CRDS                       | 34,0 %                     |
+
+_Sources :_
+
+- Article D613-6 du Code de la sécurité sociale : https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000049625405
+- Article D613-4 (catégorisation des micro-entrepreneurs) : https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000049624097
 
 ---
 

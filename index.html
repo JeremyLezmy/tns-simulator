@@ -8,13 +8,13 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Simulateur TNS & IR – CA → R (France) • v1.5.1</title>
+    <title>Simulateur TNS & IR – CA → R (France) • v1.6</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <div class="topbar" id="topbar">
       <div class="container">
-        <div style="font-weight: 700">Simulateur TNS & IR • v1.5.1</div>
+        <div style="font-weight: 700">Simulateur TNS & IR • v1.6</div>
         <div class="actions">
           <div class="pill">
             <label for="modeSel">Mode rémunération</label>
@@ -379,9 +379,13 @@
         <div class="row">
           <div>
             <label for="microActivity">Type d’activité</label>
-            <select id="microActivity">
-              <option value="service" selected>Prestation de services / profession libérale</option>
-              <option value="commerce">Vente de marchandises (y compris hébergement)</option>
+            <select id="microActivity" onchange="calcMICRO(true)">
+              <option value="service" selected>Prestations commerciales / artisanales (BIC) – 21,2 %</option>
+              <option value="bnc">Prof. libérales non réglementées (BNC) – 26,1 %</option>
+              <option value="cipav">Prof. libérales réglementées (CIPAV) – 23,2 %</option>
+              <option value="commerce">Vente de marchandises / hébergement – 12,3 %</option>
+              <label><input type="checkbox" id="microACRE" onchange="calcMICRO(true)" /> Bénéficie de l’ACRE (année 1)</label>
+              <div class="hint">Réduction de 50 % des cotisations la 1<sup>ère</sup> année.</div>
             </select>
             <div class="hint">Les seuils de CA annuels diffèrent selon la nature de l’activité.  Voir Notes.</div>
           </div>
@@ -399,8 +403,36 @@
             <div class="label">Statut de seuil</div>
             <div class="value" id="microWarning">–</div>
           </div>
+          <div class="box">
+            <div class="label">Total cotisations</div>
+            <div class="value" id="microKpiCot">–</div>
+          </div>
+          <div class="box">
+            <div class="label">Rémunération nette</div>
+            <div class="value" id="microKpiRem">–</div>
+          </div>
         </div>
         <div id="microWarningDetail" class="hint" style="margin-top: 6px"></div>
+        <h3>Détail des cotisations</h3>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Poste</th>
+                <th class="num">% CA</th>
+                <th class="num">Montant</th>
+              </tr>
+            </thead>
+            <tbody id="tblMicro"></tbody>
+            <tfoot>
+              <tr>
+                <th>Total</th>
+                <th class="num" id="sumMicroPct">–</th>
+                <th class="num" id="sumMicroTot">–</th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       </section>
 
       <!-- Bloc Salarié -->
@@ -549,7 +581,15 @@
           <div>
             <h3>Conjoint(e) micro-BNC</h3>
             <label for="caSpouse">CA mensuel (année 1) €</label><input id="caSpouse" type="number" value="3000" oninput="calcIR()" />
+
             <label for="growth">Croissance annuelle conjoint (%)</label><input id="growth" type="number" value="5" oninput="calcIR()" />
+            <label for="spouseActivity">Type activité conjoint(e)</label
+            ><select id="spouseActivity" onchange="calcIR();projectYears()">
+              <option value="bnc" selected>Prof. libérales non régl. (BNC) – 26,1 %</option>
+              <option value="service">Prestations BIC – 21,2 %</option>
+              <option value="cipav">Prof. libérales CIPAV – 23,2 %</option>
+              <option value="commerce">Commerce – 12,3 %</option></select
+            ><label><input type="checkbox" id="spouseACRE" onchange="calcIR();projectYears()" /> ACRE année 1</label>
             <div class="muted" style="font-size: 12px">Base imposable conjointe ≈ 66 % × (CA mensuel × 12).</div>
           </div>
         </div>

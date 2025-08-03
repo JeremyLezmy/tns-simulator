@@ -726,3 +726,24 @@ select:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* bouton actif du switch de vue */
+#btnViewGlobal.active,
+#btnViewCharges.active {
+  outline: 2px solid var(--accent);
+}
+.btn.btn-secondary {
+  color: var(--text);
+}
+/* surlignage étapes clé dans la synthèse */
+.stage-row td {
+  background: rgba(110, 231, 255, 0.05);
+  font-weight: 600;
+}
+
+/* catégories dans la ventilation dirigeant */
+.detail-cotisations tr.cat-row td {
+  font-weight: 700;
+  background: var(--soft);
+  border-top: 2px solid var(--border);
+}

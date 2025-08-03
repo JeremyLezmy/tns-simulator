@@ -59,6 +59,8 @@ document.addEventListener("DOMContentLoaded", function () {
   document.getElementById("distRate")?.addEventListener("input", () => calcSISU(true));
   document.getElementById("divMode")?.addEventListener("change", () => calcSISU(true));
   document.getElementById("distRate")?.addEventListener("change", () => calcSISU(true));
+  document.getElementById("btnViewGlobal")?.classList.add("active");
+
   document.getElementById("resetSISUBtn")?.addEventListener("click", () => resetSASUIS());
   document.getElementById("sisuSalaryMode")?.addEventListener("change", () => {
     updateSISUHelper();
@@ -431,20 +433,23 @@ var NOTES = {
     "<ul>" +
     "<li><b>Barème IR 2025</b> (revenus 2024) — Service-Public : <a target='_blank' rel='noopener' href='https://www.service-public.fr/particuliers/actualites/A18045'>A18045</a> et brochure pratique IR 2025 sur impots.gouv.fr : <a target='_blank' rel='noopener' href='https://www.impots.gouv.fr/portail/files/media/1_metier/2_particulier/documentation/brochure/ir_2025/ir_2025.pdf'>IR 2025</a></li>" +
     "<li><b>PASS 2025</b> = 47 100 € — Service-Public : <a target='_blank' rel='noopener' href='https://www.service-public.fr/particuliers/actualites/A15386'>A15386</a></li>" +
-    "<li><b>Seuils micro-entreprise</b> et règles de dépassement — Service-Public : <a target='_blank' rel='noopener' href='https://entreprendre.service-public.fr/vosdroits/F32353'>Seuil CA Micro</a></li>" +
+    "<li><b>Seuils micro-entreprise</b> et règles de dépassement</b> — Service-Public : <a target='_blank' rel='noopener' href='https://entreprendre.service-public.fr/vosdroits/F32353'>Seuil CA Micro</a></li>" +
     "<li><b>Articles définissant le régime micro et la ventilation des cotisations</b> — Légifrance : <a target='_blank' rel='noopener' href='https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000049624097'>Article D613-4 (catégories)</a> et <a target='_blank' rel='noopener' href='https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000049625405'>Article D613-6 (ventilation des cotisations)</a></li>" +
     "<li><b>Réforme BNC au 1er janvier 2026</b> — Décret n°2024-484 du 30 mai 2024 (modifications des règles applicables aux professions libérales non réglementées)</b> : <a target='_blank' rel='noopener' href='https://www.legifrance.gouv.fr/jorf/id/JORFTEXT0000000000000000'>Décret n°2024-484</a> (à remplacer par la bonne URL une fois confirmée)</li>" +
     "<li><b>IS PME</b> 15 % jusqu’à 42 500 € — Service-Public Pro : <a target='_blank' rel='noopener' href='https://entreprendre.service-public.fr/vosdroits/F23575'>F23575</a></li>" +
-    "<li><b>Dividendes</b> : PFU ou barème + abattement 40 % — Service-Public Pro : <a target='_blank' rel='noopener' href='https://entreprendre.service-public.fr/vosdroits/F32963'>F32963</a> et particulier : <a target='_blank' rel='noopener' href='https://www.service-public.fr/particuliers/vosdroits/F34913/1_7'>F34913</a></li>" +
-    "<li><b>Cotisations URSSAF</b> (TNS, micro, salariat) — URSSAF liste des cotisations : <a target='_blank' rel='noopener' href='https://www.urssaf.fr/portail/home/employeur/cotisations/liste-cotisations.html'>Liste cotisations URSSAF</a></li>" +
-    "<li><b>Charges patronales</b> : synthèse & méthode de calcul — L'Expert-Comptable : <a target='_blank' rel='noopener' href='https://www.l-expert-comptable.com/a/532287-montant-et-calcul-des-charges-patronales.html'>Montant et calcul des charges patronales</a></li>" +
-    "<li><b>Brut → Net salarié</b> : calcul détaillé — L'Expert-Comptable : <a target='_blank' rel='noopener' href='https://www.l-expert-comptable.com/calculateurs/calculer-le-salaire-brut-net.html'>Calculateur brut/net</a> • PayFit : <a target='_blank' rel='noopener' href='https://payfit.com/fr/fiches-pratiques/charges-salariales/'>Charges salariales</a></li>" +
+    "<li><b>Fiscalité des dividendes</b> : PFU ou barème + abattement 40 % — Service-Public Pro : <a target='_blank' rel='noopener' href='https://entreprendre.service-public.fr/vosdroits/F32963'>F32963</a> et particulier : <a target='_blank' rel='noopener' href='https://www.service-public.fr/particuliers/vosdroits/F34913/1_7'>F34913</a></li>" +
+    "<li><b>Cotisations URSSAF</b> (TNS, micro, salariat)</b> — URSSAF liste des cotisations : <a target='_blank' rel='noopener' href='https://www.urssaf.fr/portail/home/employeur/cotisations/liste-cotisations.html'>Liste cotisations URSSAF</a></li>" +
+    "<li><b>Charges patronales</b> : synthèse & méthode de calcul</b> — L'Expert-Comptable : <a target='_blank' rel='noopener' href='https://www.l-expert-comptable.com/a/532287-montant-et-calcul-des-charges-patronales.html'>Montant et calcul des charges patronales</a></li>" +
+    "<li><b>Brut → Net salarié</b> : calcul détaillé</b> — L'Expert-Comptable : <a target='_blank' rel='noopener' href='https://www.l-expert-comptable.com/calculateurs/calculer-le-salaire-brut-net.html'>Calculateur brut/net</a> • PayFit : <a target='_blank' rel='noopener' href='https://payfit.com/fr/fiches-pratiques/charges-salariales/'>Charges salariales</a></li>" +
     "<li><b>Charges patronales (fiche explicative)</b> — PayFit : <a target='_blank' rel='noopener' href='https://payfit.com/fr/fiches-pratiques/charges-patronales/'>Charges patronales</a></li>" +
-    "<li><b>Validation trimestres retraite</b> : 150 × SMIC horaire brut — Service-Public : <a target='_blank' rel='noopener' href='https://www.service-public.fr/particuliers/vosdroits/F1761'>F1761</a></li>" +
+    "<li><b>Statut du président de SAS/SASU et régime social associé</b> — Synthèse & actualités (ex. SASU-SASU.info) : traitement en assimilé salarié, décomposition des cotisations, taux effectifs, exonérations et précisions sur la lecture du brut/net pour les dirigeants.</b> — <a target='_blank' rel='noopener' href='https://sas-sasu.info/charges-sociales-president-sas-sasu/'>SAS-SASU.info (exemple)</a></li>" +
+    "<li><b>Interprétation des taux de charges</b> : explication de la distinction entre taux effectifs (charges / brut) et expressions informelles comme « 80 % de charges sociales » — synthèses pédagogiques sur brut → net et coût employeur (sources telles que L'Expert-Comptable, PayFit, etc.).</b></li>" +
+    "<li><b>Validation trimestres retraite</b> : 150 × SMIC horaire brut</b> — Service-Public : <a target='_blank' rel='noopener' href='https://www.service-public.fr/particuliers/vosdroits/F1761'>F1761</a></li>" +
     "<li><b>PUMA / CSM</b> — URSSAF : <a target='_blank' rel='noopener' href='https://www.urssaf.fr/accueil/particulier/beneficiaire-puma.html'>Bénéficiaire PUMa</a></li>" +
     "</ul>" +
-    "<p>⚠️ Les taux et seuils évoluent chaque année : vérifiez les sources officielles au moment de l’usage (IR, PASS, SMIC, IS, règles micro, etc.).</p>",
+    "<p>⚠️ Les taux et seuils évoluent chaque année : vérifiez les sources officielles au moment de l’usage (IR, PASS, SMIC, IS, règles micro, interprétation des charges, etc.).</p>",
 };
+
 function showNote(key, el) {
   var c = document.getElementById("noteContent");
   c.innerHTML = NOTES[key] || "";
@@ -848,6 +853,47 @@ function updateSISUHelper() {
     salInput.classList.remove("disabled-input");
   }
 }
+
+function decomposeSASUPresident(brutTotal) {
+  // On réutilise la fonction salariat « cadre », puis on retire chômage, AGS, APEC.
+  const deco = decomposeSalariatDetailed(brutTotal, "cadre");
+  const remove = ["Assurance chômage", "AGS", "APEC"];
+  remove.forEach((lbl) => delete deco.breakdown[lbl]);
+
+  // recalcul totaux après suppression
+  let tSal = 0,
+    tEmp = 0;
+  Object.values(deco.breakdown).forEach((p) => {
+    tSal += p.salarie;
+    tEmp += p.employeur;
+  });
+  deco.totalSalarie = tSal;
+  deco.totalEmployeur = tEmp;
+  deco.tauxEffectifSalarial = tSal / brutTotal;
+  deco.tauxEffectifPatronal = tEmp / brutTotal;
+  return deco;
+}
+function toggleSISUView(view) {
+  const g = document.getElementById("tblSISUWrapper");
+  const d = document.getElementById("tblSISUChargesWrapper");
+  const bg = document.getElementById("btnViewGlobal");
+  const bd = document.getElementById("btnViewCharges");
+
+  if (!g || !d) return; // sécurise si l’un des wrappers manque
+
+  if (view === "charges") {
+    g.style.display = "none";
+    d.style.display = "block";
+    bg?.classList.remove("active");
+    bd?.classList.add("active");
+  } else {
+    g.style.display = "block";
+    d.style.display = "none";
+    bd?.classList.remove("active");
+    bg?.classList.add("active");
+  }
+}
+
 function calcSISU(triggerProj) {
   var CA = val("sisuCA");
   var chargesPct = val("sisuChargesPct");
@@ -858,10 +904,20 @@ function calcSISU(triggerProj) {
   var salMode = document.getElementById("sisuSalaryMode").value;
   var salBrut = salMode === "min4q" ? minSalary4Quarters(smic) : val("sisuSalaire");
 
-  var rateSal = val("rateSal") / 100,
-    ratePat = val("ratePat") / 100;
-  var costEmployeur = salBrut * (1 + ratePat);
-  var salNet = salBrut * (1 - rateSal);
+  /* === cotisations dirigeant assimilé‑salarié === */
+  const deco = decomposeSASUPresident(salBrut);
+  const totalSal = deco.totalSalarie;
+  const totalEmp = deco.totalEmployeur;
+  const effRateSal = totalSal / salBrut; // ex : 0.225
+  const effRatePat = totalEmp / salBrut; // ex : 0.425
+
+  // injecte les taux dans les champs désactivés (affichage)
+  document.getElementById("rateSal").value = (effRateSal * 100).toFixed(1);
+  document.getElementById("ratePat").value = (effRatePat * 100).toFixed(1);
+
+  // coût employeur & net dirigeant
+  const costEmployeur = salBrut + totalEmp;
+  const salNet = salBrut - totalSal;
 
   var resImposable = Math.max(0, marge - costEmployeur);
 
@@ -899,22 +955,31 @@ function calcSISU(triggerProj) {
   document.getElementById("sisuKpiDivBrut").textContent = fmtEUR(divBrut);
   document.getElementById("sisuKpiDivNet").textContent = fmtEUR(window.__SISU_DivNet);
 
-  // Table details
+  /* ---- Tableau synthèse (vue globale) ---- */
   var items = [
+    /* 1.  Marge */
     ["CA", CA],
-    ["Charges externes (" + chargesPct.toFixed(1).replace(".", ",") + " %)", -CA * (chargesPct / 100)],
+    ["Charges externes (" + chargesPct.toFixed(1).replace(".", ",") + " %)", -CA * (chargesPct / 100)],
     ["Autres charges fixes", -chargesFix],
-    ["Marge avant rémunérations", marge],
+    ["Marge avant rémunérations", marge], // surlignée plus bas
+
+    /* 2.  Rémunération */
     ["Salaire brut", -salBrut],
-    ["Charges patronales (" + (ratePat * 100).toFixed(1).replace(".", ",") + " %)", -salBrut * ratePat],
-    ["Coût employeur total", -costEmployeur],
-    ["Résultat imposable IS", resImposable],
-    ["IS 15 % (jusqu’au seuil)", -isRed],
+    ["Charges salariales (" + (effRateSal * 100).toFixed(1).replace(".", ",") + " %)", -totalSal],
+    ["Charges patronales (" + (effRatePat * 100).toFixed(1).replace(".", ",") + " %)", -totalEmp],
+    ["Coût employeur total", -costEmployeur], // surlignée
+
+    /* 3.  IS */
+    ["Résultat imposable IS", resImposable], // surlignée
+    ["IS 15 % (jusqu’au seuil)", -isRed],
     ["IS taux normal", -isNorm],
     ["IS total", -isTotal],
-    ["Résultat après IS", resApresIS],
-    ["Dividendes bruts (" + (distRate * 100).toFixed(0) + " % distrib.)", -divBrut],
-    ["Prélèvements sociaux sur dividendes (17,2 %)", -psDiv],
+
+    ["Résultat après IS", resApresIS], // surlignée
+
+    /* 4.  Dividendes */
+    ["Dividendes bruts (" + (distRate * 100).toFixed(0) + " % distrib.)", -divBrut],
+    ["Prélèv. sociaux sur dividendes (17,2 %)", -psDiv],
   ];
   if (divMode === "pfu") {
     items.push(["IR sur dividendes (PFU 12,8 %)", -irDivPFU]);
@@ -929,6 +994,14 @@ function calcSISU(triggerProj) {
       return "<tr><td>" + it[0] + '</td><td class="num">' + fmtEUR(it[1]) + "</td></tr>";
     })
     .join("");
+  const stages = ["Marge avant rémunérations", "Coût employeur total", "Résultat imposable IS", "Résultat après IS"];
+  var rows = items
+    .map((it) => {
+      const cls = stages.includes(it[0]) ? "stage-row" : "";
+      return `<tr${cls ? ' class="' + cls + '"' : ""}><td>${it[0]}</td><td class="num">${fmtEUR(it[1])}</td></tr>`;
+    })
+    .join("");
+
   document.getElementById("tblSISU").innerHTML = rows;
   document.getElementById("sumSISUEnc").textContent = fmtEUR(salNet + window.__SISU_DivNet);
 
@@ -941,6 +1014,74 @@ function calcSISU(triggerProj) {
     syncIR();
   }
   if (triggerProj) projectYears();
+  /* ---------- tableau ventilation charges ---------- */
+  (function buildSISUChargesTable() {
+    const tbody = document.querySelector("#tblSISUCharges tbody");
+    let rows = "";
+
+    /* mêmes catégories que pour le mode Salariat */
+    const catMap = {
+      Santé: ["Assurance maladie", "CSG imposable", "CSG non‑imposable", "CRDS"],
+      Retraite: [
+        "Assurance vieillesse déplaf.",
+        "Assurance vieillesse plaf.",
+        "Retraite compl. Tr. 1",
+        "Retraite compl. Tr. 2",
+        "CEG Tr. 1",
+        "CEG Tr. 2",
+        "CET (> PASS)",
+        "Prévoyance cadres",
+      ],
+      Famille: ["Allocations familiales", "FNAL 0,10 %"],
+      Autres: ["Formation professionnelle", "Taxe apprentissage", "CSA 0,30 %"],
+    };
+
+    const printed = new Set();
+
+    /* catégories avec séparateur */
+    for (const [cat, labels] of Object.entries(catMap)) {
+      rows += `<tr class="cat-row"><td colspan="6">${cat}</td></tr>`;
+      labels.forEach((label) => {
+        const p = deco.breakdown[label];
+        if (!p) return;
+        printed.add(label);
+        const pctSal = p.base ? (p.salarie / p.base) * 100 : 0;
+        const pctEmp = p.base ? (p.employeur / p.base) * 100 : 0;
+        rows += `
+        <tr>
+          <td>${label}</td>
+          <td class="num">${fmtEUR(p.base)}</td>
+          <td class="num">${pctSal.toFixed(2).replace(".", ",")} %</td>
+          <td class="num">${fmtEUR(p.salarie)}</td>
+          <td class="num">${pctEmp.toFixed(2).replace(".", ",")} %</td>
+          <td class="num">${fmtEUR(p.employeur)}</td>
+        </tr>`;
+      });
+    }
+    /* postes non classés éventuels */
+    for (const label in deco.breakdown) {
+      if (printed.has(label)) continue;
+      const p = deco.breakdown[label];
+      const pctSal = p.base ? (p.salarie / p.base) * 100 : 0;
+      const pctEmp = p.base ? (p.employeur / p.base) * 100 : 0;
+      rows += `
+      <tr>
+        <td>${label}</td>
+        <td class="num">${fmtEUR(p.base)}</td>
+        <td class="num">${pctSal.toFixed(2).replace(".", ",")} %</td>
+        <td class="num">${fmtEUR(p.salarie)}</td>
+        <td class="num">${pctEmp.toFixed(2).replace(".", ",")} %</td>
+        <td class="num">${fmtEUR(p.employeur)}</td>
+      </tr>`;
+    }
+    tbody.innerHTML = rows;
+    /* footer */
+    safeSetText("sisuCharges-base", fmtEUR(salBrut));
+    safeSetText("sisuCharges-sal-pct", (effRateSal * 100).toFixed(1).replace(".", ",") + " %");
+    safeSetText("sisuCharges-sal-mt", fmtEUR(totalSal));
+    safeSetText("sisuCharges-emp-pct", (effRatePat * 100).toFixed(1).replace(".", ",") + " %");
+    safeSetText("sisuCharges-emp-mt", fmtEUR(totalEmp));
+  })();
 }
 
 /* Micro */
@@ -2358,3 +2499,4 @@ window.updateMobileHint = detectMobileView; // exposer si besoin
 window.toggleCompact = toggleCompact;
 window.calcMICRO = calcMICRO;
 window.resetMICRO = resetMICRO;
+window.toggleSISUView = toggleSISUView;

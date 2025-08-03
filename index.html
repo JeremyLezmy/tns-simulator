@@ -8,13 +8,13 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Simulateur TNS & IR – CA → R (France) • v1.6.1</title>
+    <title>Simulateur TNS & IR – CA → R (France) • v1.7</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <div class="topbar" id="topbar">
       <div class="container">
-        <div style="font-weight: 700">Simulateur TNS & IR • v1.6.1</div>
+        <div style="font-weight: 700">Simulateur TNS & IR • v1.7</div>
         <div class="actions">
           <div class="pill">
             <label for="modeSel">Mode rémunération</label>
@@ -289,14 +289,18 @@
             <label for="sisuSalaire">Salaire brut (année 1, si manuel) €</label><input id="sisuSalaire" type="number" value="20000" step="1000" />
           </div>
         </div>
+        <!-- #### a.  Taux désormais calculés #### -->
         <div class="row">
           <div>
-            <label for="rateSal">Cotisations salariales (%)</label><input id="rateSal" type="number" value="22" />
-            <div class="hint">Taux <b>moyen</b> (assimilé salarié). Ajustable selon votre cas.</div>
+            <label for="rateSal">Cotisations salariales (%)</label>
+            <!-- désactivé : valeur injectée par JS -->
+            <input id="rateSal" type="number" value="0" disabled />
+            <div class="hint">Taux effectif calculé (assimilé salarié).</div>
           </div>
           <div>
-            <label for="ratePat">Charges patronales (%)</label><input id="ratePat" type="number" value="42" />
-            <div class="hint">Taux <b>moyen</b> (hors exonérations). Ajustable.</div>
+            <label for="ratePat">Charges patronales (%)</label>
+            <input id="ratePat" type="number" value="0" disabled />
+            <div class="hint">Taux effectif calculé (hors exonérations).</div>
           </div>
         </div>
         <div class="row">
@@ -347,8 +351,15 @@
           </div>
         </div>
 
-        <h3 style="margin-top: 12px">Détail SASU IS</h3>
-        <div class="table-wrapper">
+        <!-- #### b.  sélecteur de vue #### -->
+        <h3 style="margin-top: 12px">Détail SASU IS</h3>
+        <div style="display: flex; gap: 8px; margin-bottom: 8px">
+          <button type="button" class="btn btn-secondary" id="btnViewGlobal" onclick="toggleSISUView('global')">Vue synthèse</button>
+          <button type="button" class="btn btn-secondary" id="btnViewCharges" onclick="toggleSISUView('charges')">
+            Détail charges rémunération dirigeant
+          </button>
+        </div>
+        <div class="table-wrapper" id="tblSISUWrapper">
           <table>
             <thead>
               <tr>
@@ -361,6 +372,31 @@
               <tr>
                 <th>Encaissements dirigeant (Net salaire + Net dividendes)</th>
                 <th class="num" id="sumSISUEnc">–</th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <div class="table-wrapper" id="tblSISUChargesWrapper" style="display: none">
+          <table id="tblSISUCharges" class="detail-cotisations">
+            <thead>
+              <tr>
+                <th>Poste</th>
+                <th class="num">Base</th>
+                <th class="num">Taux ch. salariales (%)</th>
+                <th class="num">Montant ch. salariales (€)</th>
+                <th class="num">Taux ch. patronales (%)</th>
+                <th class="num">Montant ch. patronales (€)</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot>
+              <tr class="summary">
+                <td>Total</td>
+                <td class="num" id="sisuCharges-base">–</td>
+                <td class="num" id="sisuCharges-sal-pct">–</td>
+                <td class="num" id="sisuCharges-sal-mt">–</td>
+                <td class="num" id="sisuCharges-emp-pct">–</td>
+                <td class="num" id="sisuCharges-emp-mt">–</td>
               </tr>
             </tfoot>
           </table>

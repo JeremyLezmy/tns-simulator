@@ -1,23 +1,34 @@
-# Simulateur TNS · SASU · Salariat & IR v1.6.1 🇫🇷
+# Simulateur de situation entrepreneuriale / salariat (France) v1.7 🇫🇷
 
-> **Tout-en-un :** calculez en quelques secondes vos rémunérations nettes, cotisations,
-> impôt sur le revenu (IR) du foyer et comparez **TNS**, **SASU (IR ou IS)**,
-> **micro-entreprise** et **salariat** sur une **projection pluri-annuelle** entièrement
-> paramétrable (inflation, PASS, croissance CA, salaire variable, inclusion du conjoint…).
+![badge-stable](https://img.shields.io/badge/version-stable-green)
+![badge-france](https://img.shields.io/badge/pays-France-blue)
+![badge-open-source](https://img.shields.io/badge/licence-privée-lightgrey)
+
+> **Tout‑en‑un :** calculez en quelques secondes vos rémunérations nettes,
+> cotisations, impôt sur le revenu (IR) du foyer et comparez **TNS**,
+> **SASU (IR ou IS)**, **micro‑entreprise** et **salariat** sur une
+> **projection pluri‑annuelle** entièrement paramétrable (inflation, PASS,
+> croissance CA, salaire variable, inclusion du conjoint…).
 
 ---
 
 ## Sommaire
 
-- [Simulateur TNS · SASU · Salariat \& IR v1.6.1 🇫🇷](#simulateur-tns--sasu--salariat--ir-v161-)
+<!-- ancre automatique des titres existants conservée -->
+
+- [Simulateur de situation entrepreneuriale / salariat (France) v1.7 🇫🇷](#simulateur-de-situation-entrepreneuriale--salariat-france-v17-)
   - [Sommaire](#sommaire)
   - [Fonctionnalités majeures](#fonctionnalités-majeures)
   - [Prise en main rapide](#prise-en-main-rapide)
   - [Paramètres \& combinaisons possibles](#paramètres--combinaisons-possibles)
   - [Modes de calcul détaillés](#modes-de-calcul-détaillés)
     - [1. TNS](#1-tns)
+      - [TNS — EURL/EI à l’IS](#tns-eurlei-à-lis)
     - [2. SASU-IR](#2-sasu-ir)
-    - [3. SASU-IS](#3-sasu-is)
+    - [3. SASU-IS — détails, UI \& logique](#3-sasu-is--détails-ui--logique)
+      - [Logique de calcul (rappel \& clarifications)](#logique-de-calcul-rappel--clarifications)
+      - [UI / visualisation ajoutées pour SASU-IS](#ui--visualisation-ajoutées-pour-sasu-is)
+      - [Hypothèses spécifiques SASU-IS](#hypothèses-spécifiques-sasu-is)
     - [4. Micro-entreprise](#4-micro-entreprise)
     - [5. Salariat](#5-salariat)
   - [Projection multiannuelle : algorithme](#projection-multiannuelle--algorithme)
@@ -42,12 +53,12 @@
 
 | Bloc                    | Ce qu’il fait                                                          | Points clés                                                                                                     |
 | ----------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| **Mode selector**       | Basculer entre TNS, SASU-IR, SASU-IS, micro, salariat                  | Réinitialisation intelligente seulement au changement de mode, synchronisation encaissements & IR               |
-| **Année 1**             | Saisie complète des hypothèses et calcul détaillé                      | Remontée des cotisations, RNI, IR, net foyer, salaires, dividendes, quote-part, etc.                            |
-| **Projection N années** | Génère une série temporelle indexée                                    | Indexation PASS/SMIC/IR, croissance des CA/salaires/BNC, suivi des dépassements micro, répétition d’antécédents |
-| **IR du foyer**         | Calcule le barème 2025 avec parts et conjoint                          | Décomposition par tranche, TMI, inclusion/exclusion du conjoint, déduction CSG pour TNS                         |
-| **Micro-alertes**       | Détection de dépassement de seuils micro                               | Tolérance une année, blocage après trois années consécutives de dépassement                                     |
-| **Export CSV**          | Génère CSV FR ou international avec toutes les données                 | Conversion automatique des formats monétaires et numeriques                                                     |
+| **Mode selector**       | Basculer entre TNS, SASU‑IR, SASU‑IS, micro, salariat                  | Réinitialisation intelligente seulement au changement de mode, synchronisation encaissements & IR               |
+| **Année 1**             | Saisie complète des hypothèses et calcul détaillé                      | Remontée des cotisations, RNI, IR, net foyer, salaires, dividendes, quote‑part, etc.                            |
+| **Projection N années** | Génère une série temporelle indexée                                    | Indexation PASS/SMIC/IR, croissance des CA/salaires/BNC, suivi des dépassements micro, répétition d’antécédents |
+| **IR du foyer**         | Calcule le barème 2025 avec parts et conjoint                          | Décomposition par tranche, TMI, inclusion/exclusion du conjoint, déduction CSG pour TNS                         |
+| **Micro‑alertes**       | Détection de dépassement de seuils micro                               | Tolérance une année, blocage après trois années consécutives de dépassement                                     |
+| **Export CSV**          | Génère CSV FR ou international avec toutes les données                 | Conversion automatique des formats monétaires et numériques                                                     |
 | **Console de debug**    | Journalisation technique séparée pour faciliter l’analyse              | Affiche les entrées/états à chaque recalcul (IR, projection...)                                                 |
 | **UI/UX avancée**       | Thème auto/sombre/clair, barre épinglable, vue compacte, mobile forced | Préférences persistées dans `localStorage`                                                                      |
 | **Accessibilité**       | Attributs ARIA, compatibilité clavier, lectures claires                | Niveau de base correct, améliorable via contributions                                                           |
@@ -56,21 +67,24 @@
 
 ## Prise en main rapide
 
-1. Choisissez un mode (TNS / SASU-IR / SASU-IS / Micro / Salariat).
-2. Renseignez les paramètres de l’année 1 : chiffre d’affaires, salaire brut, croissance, inflation, PASS, SMIC, parts fiscales, situation conjoint, etc.
-3. Cliquez sur **Calculer (année 1)** pour générer les KPI de base.
-4. Le bloc **IR du foyer** se synchronise automatiquement — ajustez :
-   - si vous voulez inclure le conjoint ou non ;
-   - nombre de parts fiscales ;
+1. **Choisissez** un mode (TNS / SASU‑IR / SASU‑IS / Micro / Salariat).
+2. **Renseignez** les paramètres de l’année 1 : chiffre d’affaires, salaire brut, croissance, inflation, PASS, SMIC, parts fiscales, situation conjoint, etc.
+3. **Cliquez** sur **Calculer (année 1)** pour générer les KPI de base.
+4. Le bloc **IR du foyer** se synchronise automatiquement — ajustez :
+   - si vous voulez inclure le conjoint ou non ;
+   - nombre de parts fiscales ;
    - types de dividendes (PFU vs barème).
-5. La projection pluriannuelle se construit automatiquement (ou via “Calculer la projection”) en tenant compte des croisances et indexations.
-6. Exportez en CSV ou comparez visuellement les modes.
+5. La **projection pluriannuelle** se construit automatiquement (ou via “Calculer la projection”) en tenant compte des croissances et indexations.
+6. **Exportez** en CSV ou comparez visuellement les modes.
 
 > Les modifications sur certains champs (comme le choix “Vous seul / Vous + conjoint”) déclenchent un recalcul automatique complet (IR + projection) grâce aux listeners.
 
 ---
 
 ## Paramètres & combinaisons possibles
+
+<details>
+<summary>🛠️  Cliquer pour la liste détaillée</summary>
 
 - **Modes de régime** :
 
@@ -101,6 +115,8 @@
   - Projection inflationnée de PASS/SMIC + évolution de revenu salarié
   - Double foyer (vous + conjoint) avec répartition micro BNC + dividendes
 
+</details>
+
 ---
 
 ## Modes de calcul détaillés
@@ -121,15 +137,45 @@
 - **Encaissement foyer** : R + spouseCash (si conjoint inclus)
 - **Net foyer** = encaissement − IR.
 
+#### TNS — EURL/EI à l’IS
+
+<!-- ★ new -->
+
+> **Pourquoi un sous‑cas ?**  
+> Dans une **EURL** ou **Entreprise Individuelle (EI)** ayant **opté pour l’IS**, la société
+> est soumise à l’impôt sur les sociétés, _mais_ le **gérant associé unique** reste
+> affilié au régime **TNS** pour ses cotisations sociales. L’outil gère déjà la
+> mécanique TNS ; cette sous‑section explicite simplement la façon dont l’IS et
+> les dividendes s’enchaînent.
+
+| Étape                         | Calcul / Règle dans le simulateur                                                      |
+| ----------------------------- | -------------------------------------------------------------------------------------- |
+| Rémunération gérant **(TNS)** | Même algorithme que la section TNS principale (assiette 74 % × R, plafonds PASS, etc.) |
+| **IS** sur résultat           | Barème PME 15 % puis taux normal (25 % par défaut)                                     |
+| **Dividendes**                | Identiques à SASU‑IS : PFU (12,8 % + PS 17,2 %) ou barème + abattement 40 %            |
+| **RNI foyer**                 | = Rémunération imposable (TNS) + dividendes imposables + baseSpouse                    |
+| **Net foyer**                 | = Flux net TNS + dividendes nets + spouseCash − IR                                     |
+
+**Particularités prises en charge :**
+
+- La **CSG déductible** sur la rémunération TNS reste
+  applicable, même si la structure est à l’IS.
+- Les dividendes remontent dans la base fiscale **selon l’option
+  PFU / barème**, comme pour la SASU‑IS.
+- Les taux effectifs de cotisations restent ceux du TNS (donc
+  **plus bas** que pour l’assimilé salarié).
+
 ### 2. SASU-IR
 
-- Salaire **assimilé salarié** : 90 % du brut est imposable (autre part peut être charges internes).
-- Quote-part BNC : additionnelle.
-- PS sur quote-part (par défaut 9,7 %, paramétrable).
-- **RNI foyer** = salaire imposable + BNC + baseSpouse.
-- **IR** : barème progressif multiplié par parts.
+- _Ajout visuel :_ badges « IR » sur les KPI de la vue synthèse pour
+  identifier rapidement la part imposable. <!-- purely UI note -->
+- _Quote‑part BNC :_ l’appli permet désormais d’**indexer distinctement** la
+  croissance de la quote‑part BNC (utilisez `bncGrow`).
+- _Rémunération :_ vous pouvez choisir entre **montant fixe** ou
+  **pourcentage du CA** grâce au nouveau champ `salaryPctOfCA` (si > 0,
+  l’outil ignore `salaryFixed`).
 
-### 3. SASU-IS
+### 3. SASU-IS — détails, UI & logique
 
 - Salaire (brut) : application de charges patronales et salariales selon taux fournis.
 - Résultat imposable = marge − coût employeur (salaire + charges patronales).
@@ -139,6 +185,67 @@
   - PFU : 12,8 % IR + 17,2 % prélèvements sociaux
   - Barème : abattement 40 %, puis IR au barème + PS 17,2 %.
 - **RNI** agrège salaire imposable, dividendes (selon mode), + conjoint.
+
+#### Logique de calcul (rappel & clarifications)
+
+- **Chemin complet du chiffre d’affaires au net perçu par le dirigeant** :
+
+  1. CA
+  2. - Charges externes et fixes
+  3. = Marge avant rémunération
+  4. - Salaire brut
+  5. (Affiché) Charges **salariales** — **visibilité uniquement** : elles font partie du brut, _elles ne sont pas retraitées une seconde fois_ dans le résultat imposable. Ce poste est inséré entre « Salaire brut » et « Charges patronales » pour aider la lecture (séparation visuelle des composantes de la rémunération).
+  6. - Charges **patronales**
+  7. = Coût employeur total
+  8. = Marge − Coût employeur → Résultat imposable à l’IS
+  9. Calcul de l’IS (15 % sur le seuil PME, puis taux normal).
+  10. Déduction de l’IS → Résultat après IS
+  11. Distribution partielle ou totale en dividendes (PFU ou barème)
+  12. Somme finale perçue = Net salaire + Dividendes nets
+
+- **Pourquoi les charges salariales apparaissent sans « doubler » le retrait du brut ?**  
+  Les charges salariales sont _comprises_ dans le salaire brut. Le résultat imposable est construit en soustrayant le coût employeur (salaire brut + charges patronales) de la marge. Afficher « Charges salariales » sert uniquement à éclairer l’utilisateur sur la ventilation du brut en net (et à calculer les taux effectifs) sans les retrancher une deuxième fois. Cette mise en forme vise la transparence du chemin comptable, pas une double déduction.
+
+- **Taux effectifs affichés (~20,8 % salariales, ~30,2 % patronales pour 30k brut)** :  
+  Ce sont des taux _effectifs_ calculés comme le rapport entre les charges et le brut (ex : charges salariales / brut). Ils ne sont pas « anormaux ». L’idée courante que « les charges sociales représentent 80 % » est souvent une tournure informelle qui confond plusieurs notions : elle peut désigner la somme des charges (salariales + patronales) rapportée au salaire net ou être une approximation de l’écart total entre coût employeur et net perçu. En pratique, les taux affichés ici sont la décomposition précise de ce que paye l’assimilé-salarié (salarié + employeur) par rapport au brut déclaré, et correspondent à des méthodes de calcul classiques de brut → net / coût employeur.
+
+#### UI / visualisation ajoutées pour SASU-IS
+
+- **Tableau « Vue synthèse »** :
+
+  - Ajout de lignes surlignées (visuelles) séparant les grandes étapes :
+    - Charges externes / fixes
+    - Rémunération dirigeant (avec sous-ligne « Charges salariales » affichée pour lecture)
+    - Charges patronales
+    - Résultat imposable à l’IS
+    - IS et résultat après IS
+    - Dividendes (bruts / nets selon mode)
+    - Encaissements dirigeant finaux (Net salaire + dividendes)
+
+- **Tableau « Détail charges rémunération dirigeant »** :
+
+  - Ventilation détaillée des cotisations (comme pour le salariat), avec des lignes surlignées ou visuellement distinctes pour distinguer :
+    - Bases
+    - Taux effectifs salariés
+    - Montants salariés
+    - Taux effectifs patronaux
+    - Montants patronaux
+  - Totaux récapitulatifs en pied de tableau (base, % et montants) mis à jour dynamiquement.
+
+- **Comportement du switch de vue** :
+  - Permet basculer entre « vue synthèse » et « détail charges » tout en gardant les taux calculés synchronisés.
+  - Les boutons indiquent visuellement l’état actif (classe `active`).
+
+#### Hypothèses spécifiques SASU-IS
+
+- Coût employeur = salaire brut + charges patronales calculées à partir d’une décomposition « assimilé salarié ».
+- Résultat imposable = marge (CA − charges externes/fixes) − coût employeur.
+- IS :
+  - 15 % jusqu’au « seuil PME » (éligible) sur la part correspondante.
+  - Taux normal (par défaut 25 %) au-delà de ce seuil.
+- Dividendes :
+  - Option PFU (12,8 % + prélèvements sociaux 17,2 %) ou barème (abattement 40 % puis IR + PS 17,2 %).
+  - Le choix influe sur la ligne « Dividendes nets perçus ».
 
 ### 4. Micro-entreprise
 
@@ -217,6 +324,7 @@
 > - https://www.urssaf.fr/accueil.html
 > - https://www.autoentrepreneur.urssaf.fr/portail/accueil.html (régime micro)
 > - https://www.economie.gouv.fr/particuliers/impots-et-fiscalite (documentation IR / PFU)
+> - https://sas-sasu.info/charges-sociales-president-sas-sasu/ Statut du président de SAS/SASU et régime social associé, traitement en assimilé salarié, décomposition des cotisations, taux effectifs, exonérations et précisions sur la lecture du brut/net pour les dirigeants.
 
 ---
 

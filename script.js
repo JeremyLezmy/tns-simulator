@@ -55,6 +55,15 @@ document.addEventListener("DOMContentLoaded", function () {
   // auto‑recalc si changement activité ou ACRE (sélecteurs déjà marqués dans le HTML)
   document.getElementById("microActivity")?.addEventListener("change", () => calcMICRO(true));
   document.getElementById("microACRE")?.addEventListener("change", () => calcMICRO(true));
+  // déclenche recalcul SASU-IS quand on change les dividendes
+  document.getElementById("distRate")?.addEventListener("input", () => calcSISU(true));
+  document.getElementById("divMode")?.addEventListener("change", () => calcSISU(true));
+  document.getElementById("distRate")?.addEventListener("change", () => calcSISU(true));
+  document.getElementById("resetSISUBtn")?.addEventListener("click", () => resetSASUIS());
+  document.getElementById("sisuSalaryMode")?.addEventListener("change", () => {
+    updateSISUHelper();
+    calcSISU(true);
+  });
 });
 
 document.getElementById("spouseActivity")?.addEventListener("change", () => {
@@ -202,6 +211,7 @@ function switchMode(v) {
     sisu.style.display = "block";
     document.getElementById("syncSource").value = "auto";
     cashSel.value = "you_plus_spouse";
+    updateSISUHelper();
     calcSISU(true);
     syncIR(); // met à jour l'IR après avoir rempli les valeurs micro
     return;
@@ -637,9 +647,13 @@ function syncIR() {
     document.getElementById("rBnc").value = Math.round(baseMicroBnc);
     document.getElementById("rDivIR").value = 0;
   } else if (mode === "salarie") {
-    const micro = window.__MICRO_state || {};
-    document.getElementById("rSal").value = 0;
-    document.getElementById("rBnc").value = Math.round(0.66 * (micro.ca || 0)); // 34 % d’abattement
+    if (!window.__SALARIE_state) {
+      calcSALARIE(false); // s'assurer que l'état existe
+    }
+    const brutTotal = window.__SALARIE_state?.brutTotal || 0;
+    const salImp = 0.9 * brutTotal;
+    document.getElementById("rSal").value = Math.round(salImp);
+    document.getElementById("rBnc").value = 0;
     document.getElementById("rDivIR").value = 0;
   }
 
@@ -823,8 +837,15 @@ function updateSISUHelper() {
   var min = minSalary4Quarters(smic);
   var info = "Seuil 4 trimestres (brut annuel) ≈ 600 × SMIC horaire = " + fmtEUR(min);
   document.getElementById("sisuMinInfo").textContent = info;
+  const salInput = document.getElementById("sisuSalaire");
   if (mode === "min4q") {
-    document.getElementById("sisuSalaire").value = Math.round(min);
+    salInput.value = Math.round(min);
+    salInput.setAttribute("disabled", ""); // désactive la saisie manuelle
+    salInput.classList.add("disabled-input");
+  } else {
+    // mode manuel : réactive et ne touche pas à la valeur (ou tu peux la laisser telle quelle)
+    salInput.removeAttribute("disabled");
+    salInput.classList.remove("disabled-input");
   }
 }
 function calcSISU(triggerProj) {
@@ -1342,7 +1363,8 @@ function calcSALARIE(triggerProj) {
 }
 
 function buildProjHeader(mode) {
-  let ths;
+  let ths = [];
+
   if (mode === "salarie") {
     ths = [
       "<th>Année</th>",
@@ -1359,7 +1381,67 @@ function buildProjHeader(mode) {
       '<th class="num">Net foyer mens.</th>',
       '<th class="num">Net foyer</th>',
     ];
+  } else if (mode === "tns") {
+    ths = [
+      "<th>Année</th>",
+      '<th class="num">PASS</th>',
+      '<th class="num">SMIC h.</th>',
+      "<th>Mode</th>",
+      '<th class="num">CA</th>',
+      '<th class="num">R</th>',
+      '<th class="num">Cotis.</th>',
+      '<th class="num">RNI foyer</th>',
+      '<th class="num">IR</th>',
+      '<th class="num">Net foyer mens.</th>',
+      '<th class="num">Net foyer</th>',
+    ];
+  } else if (mode === "sasuIR") {
+    ths = [
+      "<th>Année</th>",
+      '<th class="num">PASS</th>',
+      '<th class="num">SMIC h.</th>',
+      "<th>Mode</th>",
+      '<th class="num">Salaire</th>',
+      '<th class="num">Bénéfices</th>',
+      '<th class="num">PS</th>',
+      '<th class="num">RNI foyer</th>',
+      '<th class="num">IR</th>',
+      '<th class="num">Net foyer mens.</th>',
+      '<th class="num">Net foyer</th>',
+    ];
+  } else if (mode === "sasuIS") {
+    ths = [
+      "<th>Année</th>",
+      '<th class="num">PASS</th>',
+      '<th class="num">SMIC h.</th>',
+      "<th>Mode</th>",
+      '<th class="num">CA</th>',
+      '<th class="num">Salaire brut</th>',
+      '<th class="num">Dividendes bruts</th>',
+      '<th class="num">Dividendes nets</th>',
+      "<th>Mode div.</th>",
+      '<th class="num">Cotis/IS/PS</th>',
+      '<th class="num">RNI foyer</th>',
+      '<th class="num">IR</th>',
+      '<th class="num">Net foyer mens.</th>',
+      '<th class="num">Net foyer</th>',
+    ];
+  } else if (mode === "micro") {
+    ths = [
+      "<th>Année</th>",
+      '<th class="num">PASS</th>',
+      '<th class="num">SMIC h.</th>',
+      "<th>Mode</th>",
+      '<th class="num">CA</th>',
+      '<th class="num">Cotisations</th>',
+      '<th class="num">RNI foyer</th>',
+      '<th class="num">IR</th>',
+      '<th class="num">Net foyer mens.</th>',
+      '<th class="num">Net foyer</th>',
+      "<th>Warning micro</th>",
+    ];
   } else {
+    // fallback (ancienne logique générique)
     ths = [
       "<th>Année</th>",
       '<th class="num">PASS</th>',
@@ -1367,7 +1449,7 @@ function buildProjHeader(mode) {
       "<th>Mode</th>",
       '<th class="num">CA</th>',
       '<th class="num">R/Salaire</th>',
-      '<th class="num">BNC</th>',
+      '<th class="num">Bénéfices</th>',
       '<th class="num">Div. bruts</th>',
       '<th class="num">Div. nets</th>',
       "<th>Mode div.</th>",
@@ -1377,16 +1459,15 @@ function buildProjHeader(mode) {
       '<th class="num">Net foyer mens.</th>',
       '<th class="num">Net foyer</th>',
     ];
-    if (mode === "micro") ths.push("<th>Warning micro</th>");
   }
-  // écrase systématiquement
+
   document.getElementById("projHeaderRow").innerHTML = ths.join("");
 }
 
 function buildSummaryFooter(mode, sums, n) {
   const tfoot = document.getElementById("projFooter");
   if (!tfoot) return;
-  tfoot.innerHTML = ""; // reset
+  tfoot.innerHTML = "";
 
   const tr = document.createElement("tr");
   tr.className = "summary";
@@ -1407,7 +1488,67 @@ function buildSummaryFooter(mode, sums, n) {
       <td></td>
       <td class="num">${fmtEUR(sums.sumNet)}</td>
     `;
+  } else if (mode === "tns") {
+    tr.innerHTML = `
+      <td>Total / Moyenne</td>
+      <td class="num">–</td>
+      <td class="num">–</td>
+      <td></td>
+      <td class="num">${fmtEUR(sums.sumCA)}</td>
+      <td class="num">${fmtEUR(sums.sumR)}</td>
+      <td class="num">${fmtEUR(sums.sumCot)}</td>
+      <td class="num">${fmtEUR(sums.sumRNI)}</td>
+      <td class="num">${fmtEUR(sums.sumIR)}</td>
+      <td></td>
+      <td class="num">${fmtEUR(sums.sumNet)}</td>
+    `;
+  } else if (mode === "sasuIR") {
+    tr.innerHTML = `
+      <td>Total / Moyenne</td>
+      <td class="num">–</td>
+      <td class="num">–</td>
+      <td></td>
+      <td class="num">${fmtEUR(sums.sumR)}</td>
+      <td class="num">${fmtEUR(sums.sumB)}</td>
+      <td class="num">${fmtEUR(sums.sumCot)}</td>
+      <td class="num">${fmtEUR(sums.sumRNI)}</td>
+      <td class="num">${fmtEUR(sums.sumIR)}</td>
+      <td></td>
+      <td class="num">${fmtEUR(sums.sumNet)}</td>
+    `;
+  } else if (mode === "sasuIS") {
+    tr.innerHTML = `
+      <td>Total / Moyenne</td>
+      <td class="num">–</td>
+      <td class="num">–</td>
+      <td></td>
+      <td class="num">${fmtEUR(sums.sumCA)}</td>
+      <td class="num">${fmtEUR(sums.sumR)}</td>
+      <td class="num">${fmtEUR(sums.sumDivB)}</td>
+      <td class="num">${fmtEUR(sums.sumDivN)}</td>
+      <td >–</td>
+      <td class="num">${fmtEUR(sums.sumCot)}</td>
+      <td class="num">${fmtEUR(sums.sumRNI)}</td>
+      <td class="num">${fmtEUR(sums.sumIR)}</td>
+      <td></td>
+      <td class="num">${fmtEUR(sums.sumNet)}</td>
+    `;
+  } else if (mode === "micro") {
+    tr.innerHTML = `
+      <td>Total / Moyenne</td>
+      <td class="num">–</td>
+      <td class="num">–</td>
+      <td></td>
+      <td class="num">${fmtEUR(sums.sumCA)}</td>
+      <td class="num">${fmtEUR(sums.sumCot)}</td>
+      <td class="num">${fmtEUR(sums.sumRNI)}</td>
+      <td class="num">${fmtEUR(sums.sumIR)}</td>
+      <td></td>
+      <td class="num">${fmtEUR(sums.sumNet)}</td>
+      <td></td>
+    `;
   } else {
+    // fallback générique
     const extra = mode === "micro" ? "<td></td>" : "";
     tr.innerHTML = `
       <td>Total / Moyenne</td>
@@ -1568,10 +1709,6 @@ function projectYears() {
           <td>TNS</td>
           <td class="num">${fmtEUR(CA)}</td>
           <td class="num">${fmtEUR(R)}</td>
-          <td class="num">–</td>
-          <td class="num">–</td>
-          <td class="num">–</td>
-          <td>–</td>
           <td class="num">${fmtEUR(cotTot)}</td>
           <td class="num">${fmtEUR(RNI)}</td>
           <td class="num">${fmtEUR(IR)}</td>
@@ -1610,12 +1747,8 @@ function projectYears() {
         <td class="num">${fmtEUR(PASS)}</td>
         <td class="num">${fmtEUR(SMIC)}</td>
         <td>SASU-IR</td>
-        <td class="num">–</td>
         <td class="num">${fmtEUR(salaire)}</td>
         <td class="num">${fmtEUR(bnc)}</td>
-        <td class="num">–</td>
-        <td class="num">–</td>
-        <td>–</td>
         <td class="num">${fmtEUR(psDue)}</td>
         <td class="num">${fmtEUR(RNI2)}</td>
         <td class="num">${fmtEUR(IR2)}</td>
@@ -1685,7 +1818,6 @@ function projectYears() {
         <td class="num">${fmtEUR(SMIC)}</td>
         <td>Micro‑entreprise</td>
         <td class="num">${fmtEUR(caYear)}</td>
-        <td class="num">–</td><td class="num">–</td><td class="num">–</td><td class="num">–</td><td>–</td>
         <td class="num">${fmtEUR(cotY)}</td>
         <td class="num">${fmtEUR(RNI_Y)}</td>
         <td class="num">${fmtEUR(IRY)}</td>
@@ -1796,7 +1928,6 @@ function projectYears() {
         <td>SASU-IS</td>
         <td class="num">${fmtEUR(CA)}</td>
         <td class="num">${fmtEUR(salBrut)}</td>
-        <td class="num">–</td>
         <td class="num">${fmtEUR(divBrut)}</td>
         <td class="num">${fmtEUR(divNet)}</td>
         <td>${divMode === "pfu" ? "PFU" : "Barème"}</td>
@@ -2147,6 +2278,19 @@ function resetSASU() {
   document.getElementById("sasuBncGrow").value = 5;
   document.getElementById("psRate").value = 0.097;
   calcSASU(true);
+}
+
+function resetSASUIS() {
+  document.getElementById("sisuCA").value = 100000;
+  document.getElementById("sisuChargesPct").value = 3;
+  document.getElementById("sisuChargesFix").value = 0;
+  document.getElementById("sisuSalaryMode").value = "min4q";
+  updateSISUHelper();
+  document.getElementById("isRedThr").value = 42500;
+  document.getElementById("isRate").value = 25; // en %
+  document.getElementById("distRate").value = 100;
+  document.getElementById("divMode").value = "pfu";
+  calcSISU(true);
 }
 
 // Recalcule les années de projection en fonction des inputs "Année de départ", "Nombre d'années", inflation, PASS, etc.

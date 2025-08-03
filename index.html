@@ -116,7 +116,7 @@
       <section class="card span-12" id="blocTNS">
         <h2>EURL / EI à l’IS — Gérant TNS (full rémunération)</h2>
         <div class="row">
-          <div><label for="ca">CA (année 1) €</label><input id="ca" type="number" value="100000" /></div>
+          <div><label for="ca">CA (année 1) €</label><input id="ca" type="number" value="100000" step="1000" /></div>
           <div><label for="caGrow">Croissance CA (% / an)</label><input id="caGrow" type="number" value="5" /></div>
         </div>
         <div class="row">
@@ -260,7 +260,7 @@
       <section class="card span-12" id="blocSASUIS" style="display: none">
         <h2>SASU à l’IS — Salaire + Dividendes</h2>
         <div class="row">
-          <div><label for="sisuCA">CA (année 1) €</label><input id="sisuCA" type="number" value="150000" /></div>
+          <div><label for="sisuCA">CA (année 1) €</label><input id="sisuCA" type="number" value="100000" step="1000" /></div>
           <div><label for="sisuCAGrow">Croissance CA (% / an)</label><input id="sisuCAGrow" type="number" value="5" /></div>
         </div>
         <div class="row">
@@ -280,11 +280,14 @@
           <div>
             <label for="sisuSalaryMode">Salaire</label>
             <select id="sisuSalaryMode" onchange="updateSISUHelper()">
-              <option value="manual" selected>Montant brut (manuel)</option>
-              <option value="min4q">Salaire minimal pour 4 trimestres</option>
+              <option value="manual">Montant brut (manuel)</option>
+              <option value="min4q" selected>Salaire minimal pour 4 trimestres</option>
             </select>
+            <div class="hint">ℹ️ Le <b>brut annuel minimal</b> pour <b>4 trimestres</b> = <b>600 × SMIC horaire</b>. Voir Notes.</div>
           </div>
-          <div><label for="sisuSalaire">Salaire brut (année 1, si manuel) €</label><input id="sisuSalaire" type="number" value="20000" /></div>
+          <div>
+            <label for="sisuSalaire">Salaire brut (année 1, si manuel) €</label><input id="sisuSalaire" type="number" value="20000" step="1000" />
+          </div>
         </div>
         <div class="row">
           <div>
@@ -316,7 +319,8 @@
         <div class="row" style="margin-top: 6px">
           <div style="display: flex; gap: 10px; align-items: end">
             <button type="button" class="btn" onclick="calcSISU(true)">Calculer (SASU IS année 1)</button>
-            <div class="hint">ℹ️ Le <b>brut annuel minimal</b> pour <b>4 trimestres</b> = <b>600 × SMIC horaire</b>. Voir Notes.</div>
+
+            <button class="btn btn-reset subtle" id="resetSISUBtn" type="button" onclick="resetSASUIS()">Réinitialiser SASU-IS</button>
           </div>
         </div>
         <div class="kpi">
@@ -369,7 +373,7 @@
         <div class="row">
           <div>
             <label for="microCA">CA (année 1) €</label>
-            <input id="microCA" type="number" value="70000" />
+            <input id="microCA" type="number" value="70000" step="1000" />
           </div>
           <div>
             <label for="microGrow">Croissance CA (% / an)</label>
@@ -380,8 +384,8 @@
           <div>
             <label for="microActivity">Type d’activité</label>
             <select id="microActivity" onchange="calcMICRO(true)">
-              <option value="service" selected>Prestations commerciales / artisanales (BIC) – 21,2 %</option>
-              <option value="bnc">Prof. libérales non réglementées (BNC) – 26,1 %</option>
+              <option value="service">Prestations commerciales / artisanales (BIC) – 21,2 %</option>
+              <option value="bnc" selected>Prof. libérales non réglementées (BNC) – 26,1 %</option>
               <option value="cipav">Prof. libérales réglementées (CIPAV) – 23,2 %</option>
               <option value="commerce">Vente de marchandises / hébergement – 12,3 %</option>
               <label><input type="checkbox" id="microACRE" onchange="calcMICRO(true)" /> Bénéficie de l’ACRE (année 1)</label>
@@ -441,7 +445,7 @@
         <div class="row">
           <div>
             <label for="salaireBrut">Salaire brut annuel (€)</label>
-            <input id="salaireBrut" type="number" value="50000" oninput="calcSALARIE(true)" />
+            <input id="salaireBrut" type="number" value="50000" step="1000" oninput="calcSALARIE(true)" />
           </div>
           <div>
             <label for="salaireMode">Mode de saisie</label>
@@ -454,7 +458,7 @@
         <div class="row">
           <div>
             <label for="salaireGrow">Croissance salaire (% / an)</label>
-            <input id="salaireGrow" type="number" value="0" oninput="updateSalaireHelper()" />
+            <input id="salaireGrow" type="number" value="3" oninput="updateSalaireHelper()" />
           </div>
         </div>
         <div class="row">

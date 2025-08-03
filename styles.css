@@ -709,3 +709,20 @@ td.num {
   background: var(--soft);
   border-top: 2px solid var(--border);
 }
+
+/* rendre visuellement "voilés" les inputs/boutons désactivés */
+input:disabled,
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* classe auxiliaire si tu veux plus de contrôle */
+.disabled-input {
+  opacity: 0.6;
+}
+
+select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

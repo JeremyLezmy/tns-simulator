@@ -1,4 +1,4 @@
-# Simulateur TNS · SASU · Salariat & IR v1.6 🇫🇷
+# Simulateur TNS · SASU · Salariat & IR v1.6.1 🇫🇷
 
 > **Tout-en-un :** calculez en quelques secondes vos rémunérations nettes, cotisations,
 > impôt sur le revenu (IR) du foyer et comparez **TNS**, **SASU (IR ou IS)**,
@@ -9,7 +9,7 @@
 
 ## Sommaire
 
-- [Simulateur TNS · SASU · Salariat \& IR v1.6 🇫🇷](#simulateur-tns--sasu--salariat--ir-v16-)
+- [Simulateur TNS · SASU · Salariat \& IR v1.6.1 🇫🇷](#simulateur-tns--sasu--salariat--ir-v161-)
   - [Sommaire](#sommaire)
   - [Fonctionnalités majeures](#fonctionnalités-majeures)
   - [Prise en main rapide](#prise-en-main-rapide)

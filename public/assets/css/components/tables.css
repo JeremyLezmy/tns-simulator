@@ -1,7 +1,7 @@
 /* Tables & Data Display */
 .table-wrapper {
   overflow-x: auto;
-  width: 100%;
+  /* width: 100%; */
   -webkit-overflow-scrolling: touch; /* Pour un scroll fluide sur iOS */
 
   /* AMÉLIORATION UX : Indice visuel de scroll */

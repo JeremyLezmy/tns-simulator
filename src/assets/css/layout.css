@@ -23,19 +23,18 @@ header.container {
 }
 .span-8 {
   grid-column: span 8;
+  min-width: 0;
 }
 .span-12 {
   grid-column: span 12;
+  min-width: 0;
 }
 
 .row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
-}
-/* éviter débordements de flex enfants */
-.row > * {
-  min-width: 0;
+  min-width: 0; /* LA SOLUTION FINALE : Permet à la rangée elle-même de rétrécir dans son parent Grid */
 }
 
 /* Responsive Breakpoints */
@@ -43,6 +42,7 @@ header.container {
   .grid {
     grid-template-columns: 1fr;
   }
+
   .span-4,
   .span-6,
   .span-8,
@@ -95,12 +95,17 @@ header.container {
   grid-template-columns: 1fr !important;
 }
 .force-mobile .actions {
-  flex-direction: column !important;
+  flex-direction: row !important;
+  flex-wrap: wrap !important;
+  justify-content: center !important;
 }
-.force-mobile .pill,
+.force-mobile .pill {
+  width: auto !important; /* LA CORRECTION : La pilule s'adapte à son contenu */
+  flex-grow: 1; /* Permet aux pilules de s'étirer un peu pour un meilleur remplissage */
+}
 .force-mobile select,
 .force-mobile input {
-  width: 100% !important;
+  width: 100% !important; /* Les champs, eux, peuvent bien prendre toute la largeur de leur pilule */
 }
 .force-mobile .kpi {
   flex-direction: column !important;

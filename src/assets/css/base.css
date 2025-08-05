@@ -149,6 +149,7 @@ button.btn {
   border-radius: 12px;
   font-weight: 700;
   display: inline-block;
+  font-size: clamp(9px, 2.5vw, 14px); /* Correspond à clamp(11px, 2.2vw, 14px) */
 }
 button.btn-secondary {
   background: var(--panel);
@@ -221,3 +222,9 @@ select:disabled {
   opacity: 0.8;
   text-decoration: none;
 }
+/* ======================================= */
+/* ====== CODE DE DÉBOGAGE VISUEL ====== */
+/* ======================================= */
+/* * {
+  outline: 1px solid red !important;
+} */

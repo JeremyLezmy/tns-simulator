@@ -73,16 +73,22 @@
   min-width: 0;
 }
 
-/* ... (le reste des styles comme .tabs, etc., reste identique) ... */
 @media (max-width: 840px) {
   .topbar .container,
   .actions {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 6px;
+    flex-direction: row; /* On repasse en ligne */
+    flex-wrap: wrap; /* On autorise le retour à la ligne */
+    justify-content: center; /* On centre les éléments */
+    gap: 8px; /* On uniformise l'espacement */
   }
   .pill {
-    width: 100%;
+    /* Les pilules ne prennent plus toute la largeur, mais s'adaptent à leur contenu */
+    width: auto;
+    flex-grow: 1; /* Permet aux pilules de grandir pour remplir l'espace */
+  }
+  .pill select,
+  .pill button {
+    flex: 1 1 auto; /* Assure que le contenu remplit la pilule */
   }
 }
 

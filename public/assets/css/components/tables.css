@@ -1,15 +1,67 @@
 /* Tables & Data Display */
 .table-wrapper {
   overflow-x: auto;
-  overflow-y: visible;
-  -webkit-overflow-scrolling: touch;
   width: 100%;
+  -webkit-overflow-scrolling: touch; /* Pour un scroll fluide sur iOS */
+
+  /* AMÉLIORATION UX : Indice visuel de scroll */
+  position: relative;
+  padding-bottom: 1em; /* Augmente la zone de "grip" pour le scroll */
 }
+
+/* Ombre subtile pour indiquer que la table peut défiler */
+.table-wrapper::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 1em; /* S'arrête au niveau du padding */
+  width: 15px;
+  background: linear-gradient(to left, var(--bg), transparent);
+  pointer-events: none; /* Pour ne pas bloquer les clics */
+  opacity: 1;
+  transition: opacity 0.2s ease-in-out;
+}
+
+/* Cache l'ombre quand on est au bout du scroll (avancé) */
+.table-wrapper:has(table:scrolled-to-end)::after {
+  opacity: 0;
+}
+/* Polyfill pour Firefox qui ne supporte pas :has */
+@-moz-document url-prefix() {
+  .table-wrapper:after {
+    display: none; /* Désactivé sur Firefox en attendant le support de :has */
+  }
+}
+
 .table-wrapper table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 700px;
+  min-width: 700px; /* Force la table à être large */
   font-size: 14px;
+}
+th,
+td {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+}
+th {
+  color: var(--text-muted, #888); /* Fallback */
+  text-align: left;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  background: var(--panel);
+  z-index: 2;
+  box-shadow: 0 1px 0 var(--border);
+}
+:root[data-theme="dark"] th {
+  color: #cfe2ff;
+}
+td.num,
+th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 th,
 td {

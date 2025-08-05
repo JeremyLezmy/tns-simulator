@@ -1,4 +1,27 @@
 /* Card & KPI Components */
+@media (max-width: 840px) {
+  .kpi {
+    display: grid;
+    /* Crée une grille responsive : 2 colonnes si possible, sinon 1 */
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 8px;
+  }
+  .box {
+    min-width: 0;
+    padding: 8px 10px;
+    /* On remet le label au-dessus de la valeur, c'est plus lisible dans une grille */
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .box .label {
+    font-size: 11px;
+  }
+  .box .value {
+    font-size: 16px;
+  }
+}
+
 .card {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
   border: 1px solid var(--border);

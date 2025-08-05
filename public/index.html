@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="auto">
+  <head>
+    <meta charset="utf-8" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Simulateur TNS & IR – CA → R (France) • v1.8</title>
+
+    <link rel="stylesheet" href="/public/assets/css/base.css" />
+    <link rel="stylesheet" href="/public/assets/css/layout.css" />
+    <link rel="stylesheet" href="/public/assets/css/components/topbar.css" />
+    <link rel="stylesheet" href="/public/assets/css/components/cards.css" />
+    <link rel="stylesheet" href="/public/assets/css/components/tables.css" />
+  </head>
+
+  <body>
+    <header id="app-header" class="app-header">
+      <div class="app-title">Simulateur TNS & IR • v1.8</div>
+      <div class="topbar" id="topbar">
+        <div class="container">
+          <div class="actions">
+            <div class="pill">
+              <label for="modeSel">Mode rémunération</label>
+              <select id="modeSel">
+                <option value="tns" selected>EURL/EI à l’IS (TNS)</option>
+                <option value="sasuIR">SASU à l’IR (transparence)</option>
+                <option value="sasuIS">SASU à l’IS (salaire + dividendes)</option>
+                <option value="micro">Micro-entreprise</option>
+                <option value="salarie">Salariat</option>
+              </select>
+            </div>
+            <div class="pill">
+              <label for="themeSel">Thème</label>
+              <select id="themeSel">
+                <option value="dark" selected>Sombre</option>
+                <option value="light">Clair</option>
+                <option value="auto">Auto (OS)</option>
+              </select>
+            </div>
+            <div class="pill">
+              <label for="roundSel" style="margin-left: 8px">Arr.</label>
+              <select id="roundSel" style="min-width: 70px">
+                <option value="disp0" selected>0&nbsp;€</option>
+                <option value="disp2">2&nbsp;déc.</option>
+              </select>
+            </div>
+            <div class="pill">
+              <label for="viewMode">Affichage</label>
+              <select id="viewMode">
+                <option value="auto" selected>Auto</option>
+                <option value="mobile">Mobile</option>
+                <option value="desktop">Ordinateur</option>
+              </select>
+            </div>
+            <button id="pinBtn" type="button" aria-label="Épingler la barre">
+              <span id="pinEmoji">📌</span>
+              <span id="pinText">Épinglée</span>
+            </button>
+            <div class="pill">
+              <label for="csvLocale">Export CSV</label>
+              <select id="csvLocale">
+                <option value="fr" selected>Semicolon " ; "</option>
+                <option value="intl">Comma " , "</option>
+              </select>
+              <button id="exportCsvBtn" class="btn" type="button">Exporter CSV</button>
+            </div>
+            <div class="pill">
+              <a href="#notes" style="text-decoration: none; color: inherit">Notes & Sources</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div id="app-header-spacer"></div>
+
+    <header class="container">
+      <h1>Entrée par <u>CA</u> et charges + Projection pluriannuelle</h1>
+      <div class="subtitle">TNS vs SASU-IR vs SASU-IS (salaire + dividendes). SMIC min. 4 trimestres, PFU/barème, projection multi-années.</div>
+    </header>
+
+    <div class="container grid">
+      <section class="card span-12">
+        <h2>Paramètres généraux</h2>
+
+        <div class="row">
+          <div><label for="startYear">Année de départ</label><input id="startYear" type="number" value="2025" /></div>
+
+          <div><label for="years">Nombre d'années</label><input id="years" type="number" value="5" /></div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="inflation">Inflation / indexation barème IR (% / an)</label><input id="inflation" type="number" step="0.1" value="2" />
+          </div>
+
+          <div><label for="passGrow">Croissance annuelle du PASS (% / an)</label><input id="passGrow" type="number" step="0.1" value="2" /></div>
+        </div>
+
+        <div class="row">
+          <div><label for="pass">PASS (année 1, €/an)</label><input id="pass" type="number" value="47100" /></div>
+
+          <div><label for="cfp">CFP (forfait) € — TNS</label><input id="cfp" type="number" value="118" /></div>
+        </div>
+      </section>
+
+      <section class="card span-12" id="blocTNS">
+        <h2>EURL / EI à l’IS — Gérant TNS (full rémunération)</h2>
+
+        <div class="row">
+          <div><label for="ca">CA (année 1) €</label><input id="ca" type="number" value="100000" step="1000" /></div>
+
+          <div><label for="caGrow">Croissance CA (% / an)</label><input id="caGrow" type="number" value="5" /></div>
+        </div>
+
+        <div class="row">
+          <div><label for="chargesPct">Charges externes (% du CA)</label><input id="chargesPct" type="number" value="3" /></div>
+
+          <div><label for="chargesFixes">Autres charges fixes (€/an, année 1)</label><input id="chargesFixes" type="number" value="0" /></div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label>CSG incluse dans neutralisation IS ?</label>
+            <select id="includeCsg">
+              <option value="1" selected>Oui</option>
+
+              <option value="0">Non</option>
+            </select>
+          </div>
+
+          <div style="display: flex; gap: 10px; align-items: end">
+            <button id="calcTnsBtn" type="button" class="btn">Calculer (TNS année 1)</button>
+            <button id="resetTnsBtn" class="btn btn-reset subtle">Réinitialiser</button>
+          </div>
+        </div>
+
+        <div class="kpi">
+          <div class="box">
+            <div class="label">Marge dispo</div>
+
+            <div class="value" id="margeOut">–</div>
+          </div>
+
+          <div class="box">
+            <div class="label">Rémunération (R)</div>
+
+            <div class="value" id="Rout">–</div>
+
+            <div id="Rratio" class="muted" style="font-size: 12px">–</div>
+          </div>
+
+          <div class="box">
+            <div class="label">Cotis. (hors CSG)</div>
+
+            <div class="value" id="cotHorsCsg">–</div>
+
+            <div id="cotHorsCsgPct" class="muted" style="font-size: 12px">–</div>
+          </div>
+
+          <div class="box">
+            <div class="label">CSG-CRDS</div>
+
+            <div class="value" id="csgOut">–</div>
+          </div>
+
+          <div class="box">
+            <div class="label">Total cotis. TNS</div>
+
+            <div class="value" id="totalTns">–</div>
+
+            <div id="totalTnsPct" class="muted" style="font-size: 12px">–</div>
+          </div>
+        </div>
+
+        <div class="hint">Les taux TNS utilisés sont des <b>taux effectifs</b> et plafonnés par le PASS ; ajustez si vos régimes diffèrent.</div>
+
+        <h3 style="margin-top: 12px">Détail cotisations</h3>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Poste</th>
+
+                <th class="num">Montant</th>
+
+                <th class="num">% de R</th>
+              </tr>
+            </thead>
+
+            <tbody id="tblTns"></tbody>
+
+            <tfoot>
+              <tr>
+                <th>Total hors CSG</th>
+
+                <th class="num" id="sumHorsCsg">–</th>
+
+                <th class="num" id="sumHorsCsgPct">–</th>
+              </tr>
+
+              <tr>
+                <th>CSG-CRDS</th>
+
+                <th class="num" id="sumCsg">–</th>
+
+                <th class="num" id="sumCsgPct">–</th>
+              </tr>
+
+              <tr>
+                <th>Total cotisations</th>
+
+                <th class="num" id="sumTot">–</th>
+
+                <th class="num" id="sumTotPct">–</th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div class="console" id="console"></div>
+      </section>
+
+      <section class="card span-12" id="blocSASU" style="display: none">
+        <h2>SASU à l’IR — Transparence</h2>
+
+        <div class="row">
+          <div><label for="sasuSalaire">Salaire brut (année 1) €</label><input id="sasuSalaire" type="number" value="12000" /></div>
+
+          <div><label for="sasuSalaireGrow">Croissance salaire (% / an)</label><input id="sasuSalaireGrow" type="number" value="0" /></div>
+        </div>
+
+        <div class="row">
+          <div><label for="sasuBnc">BNC imposable (année 1) €</label><input id="sasuBnc" type="number" value="84000" /></div>
+
+          <div><label for="sasuBncGrow">Croissance BNC (% / an)</label><input id="sasuBncGrow" type="number" value="5" /></div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="psRate">Prélèvements sociaux sur la quote-part</label>
+            <select id="psRate">
+              <option value="0.097" selected>9,7 % (activité pro)</option>
+
+              <option value="0.172">17,2 % (patrimoine)</option>
+            </select>
+          </div>
+
+          <div style="display: flex; gap: 10px; align-items: end">
+            <button id="calcSasuIrBtn" type="button" class="btn">Calculer (SASU IR année 1)</button>
+            <button id="resetSasuIrBtn" class="btn btn-reset subtle">Réinit. SASU</button>
+          </div>
+        </div>
+
+        <div class="kpi">
+          <div class="box">
+            <div class="label">Salaire imposable (-10 %)</div>
+
+            <div class="value" id="sasuSalaireImp">–</div>
+          </div>
+
+          <div class="box">
+            <div class="label">PS sur quote-part</div>
+
+            <div class="value" id="sasuPs">–</div>
+
+            <div id="sasuPsRateText" class="muted" style="font-size: 12px">–</div>
+          </div>
+
+          <div class="box">
+            <div class="label">Revenu imposable (sal + BNC)</div>
+
+            <div class="value" id="sasuRni">–</div>
+          </div>
+        </div>
+
+        <h3 style="margin-top: 12px">Détail SASU (IR & encaissements)</h3>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Poste</th>
+
+                <th class="num">Montant</th>
+              </tr>
+            </thead>
+
+            <tbody id="tblSasu"></tbody>
+
+            <tfoot>
+              <tr>
+                <th>Total encaissements dirigeant (sal + BNC)</th>
+
+                <th class="num" id="sumSasuEnc">–</th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </section>
+
+      <section class="card span-12" id="blocSASUIS" style="display: none">
+        <h2>SASU à l’IS — Salaire + Dividendes</h2>
+
+        <div class="row">
+          <div><label for="sisuCA">CA (année 1) €</label><input id="sisuCA" type="number" value="100000" step="1000" /></div>
+
+          <div><label for="sisuCAGrow">Croissance CA (% / an)</label><input id="sisuCAGrow" type="number" value="5" /></div>
+        </div>
+
+        <div class="row">
+          <div><label for="sisuChargesPct">Charges externes (% du CA)</label><input id="sisuChargesPct" type="number" value="3" /></div>
+
+          <div><label for="sisuChargesFix">Autres charges fixes (€/an, année 1)</label><input id="sisuChargesFix" type="number" value="0" /></div>
+        </div>
+
+        <div class="row">
+          <div><label for="smicHour">SMIC horaire brut (année 1) €</label><input id="smicHour" type="number" value="11.65" /></div>
+
+          <div><label for="smicGrow">Croissance SMIC (% / an)</label><input id="smicGrow" type="number" value="2" /></div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="sisuSalaryMode">Salaire</label>
+            <select id="sisuSalaryMode">
+              <option value="manual">Montant brut (manuel)</option>
+
+              <option value="min4q" selected>Salaire minimal pour 4 trimestres</option>
+            </select>
+
+            <div class="hint">ℹ️ Le <b>brut annuel minimal</b> pour <b>4 trimestres</b> = <b>600 × SMIC horaire</b>. Voir Notes.</div>
+          </div>
+
+          <div>
+            <label for="sisuSalaire">Salaire brut (année 1, si manuel) €</label><input id="sisuSalaire" type="number" value="20000" step="1000" />
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="rateSal">Cotisations salariales (%)</label> <input id="rateSal" type="number" value="0" disabled />
+
+            <div class="hint">Taux effectif calculé (assimilé salarié).</div>
+          </div>
+
+          <div>
+            <label for="ratePat">Charges patronales (%)</label> <input id="ratePat" type="number" value="0" disabled />
+
+            <div class="hint">Taux effectif calculé (hors exonérations).</div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="isRedThr">Seuil IS réduit 15 % (€/an)</label><input id="isRedThr" type="number" value="42500" />
+            <div class="hint">Seuil PME éligible (CGI art. 219).</div>
+          </div>
+
+          <div><label for="isRate">IS taux normal (%)</label><input id="isRate" type="number" value="25" /></div>
+        </div>
+
+        <div class="row">
+          <div><label for="distRate">Distribution dividendes (% du résultat après IS)</label><input id="distRate" type="number" value="100" /></div>
+
+          <div>
+            <label for="divMode">Fiscalité dividendes</label>
+            <select id="divMode">
+              <option value="pfu" selected>PFU 12,8 % + PS 17,2 %</option>
+
+              <option value="bareme">Barème (+ abattement 40 %) + PS 17,2 %</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row" style="margin-top: 6px">
+          <div style="display: flex; gap: 10px; align-items: end">
+            <button id="calcSisuBtn" type="button" class="btn">Calculer (SASU IS année 1)</button>
+            <button class="btn btn-reset subtle" id="resetSISUBtn" type="button">Réinitialiser SASU-IS</button>
+          </div>
+        </div>
+
+        <div class="kpi">
+          <div class="box">
+            <div class="label">Salaire brut retenu</div>
+
+            <div class="value" id="sisuKpiSal">–</div>
+
+            <div class="muted" id="sisuMinInfo" style="font-size: 12px">–</div>
+          </div>
+
+          <div class="box">
+            <div class="label">Résultat imposable IS</div>
+
+            <div class="value" id="sisuKpiRes">–</div>
+          </div>
+
+          <div class="box">
+            <div class="label">IS (total)</div>
+
+            <div class="value" id="sisuKpiIS">–</div>
+          </div>
+
+          <div class="box">
+            <div class="label">Dividendes bruts</div>
+
+            <div class="value" id="sisuKpiDivBrut">–</div>
+          </div>
+
+          <div class="box">
+            <div class="label">Dividendes nets perçus</div>
+
+            <div class="value" id="sisuKpiDivNet">–</div>
+          </div>
+        </div>
+
+        <h3 style="margin-top: 12px">Détail SASUIS</h3>
+
+        <div style="display: flex; gap: 8px; margin-bottom: 8px">
+          <button type="button" class="btn btn-secondary active" id="btnViewGlobal">Vue synthèse</button>
+          <button type="button" class="btn btn-secondary" id="btnViewCharges">Détail charges rémunération dirigeant</button>
+        </div>
+
+        <div class="table-wrapper" id="tblSISUWrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Poste</th>
+
+                <th class="num">Montant</th>
+              </tr>
+            </thead>
+
+            <tbody id="tblSISU"></tbody>
+
+            <tfoot>
+              <tr>
+                <th>Encaissements dirigeant (Net salaire + Net dividendes)</th>
+
+                <th class="num" id="sumSISUEnc">–</th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div class="table-wrapper" id="tblSISUChargesWrapper" style="display: none">
+          <table id="tblSISUCharges" class="detail-cotisations">
+            <thead>
+              <tr>
+                <th>Poste</th>
+
+                <th class="num">Base</th>
+
+                <th class="num">Tauxch.salariales(%)</th>
+
+                <th class="num">Montantch.salariales(€)</th>
+
+                <th class="num">Tauxch.patronales(%)</th>
+
+                <th class="num">Montantch.patronales(€)</th>
+              </tr>
+            </thead>
+
+            <tbody></tbody>
+
+            <tfoot>
+              <tr class="summary">
+                <td>Total</td>
+
+                <td class="num" id="sisuCharges-base">–</td>
+
+                <td class="num" id="sisuCharges-sal-pct">–</td>
+
+                <td class="num" id="sisuCharges-sal-mt">–</td>
+
+                <td class="num" id="sisuCharges-emp-pct">–</td>
+
+                <td class="num" id="sisuCharges-emp-mt">–</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </section>
+
+      <section class="card span-12" id="blocMICRO" style="display: none">
+        <h2>Micro-entreprise</h2>
+
+        <div class="row">
+          <div><label for="microCA">CA (année 1) €</label> <input id="microCA" type="number" value="70000" step="1000" /></div>
+
+          <div><label for="microGrow">Croissance CA (% / an)</label> <input id="microGrow" type="number" value="5" /></div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="microActivity">Type d’activité</label>
+            <select id="microActivity">
+              <option value="service">Prestations commerciales / artisanales (BIC)– 21,2 %</option>
+
+              <option value="bnc" selected>Prof. libérales nonréglementées(BNC)–26,1 %</option>
+
+              <option value="cipav">Prof. libérales réglementées (CIPAV)–23,2 %</option>
+
+              <option value="commerce">Vente de marchandises / hébergement–12,3 %</option>
+            </select>
+            <label><input type="checkbox" id="microACRE" /> Bénéficie de l’ACRE (année1)</label>
+            <div class="hint">Réduction de 50 % des cotisations la 1<sup>ère</sup> année.</div>
+
+            <div class="hint">Les seuils de CA annuels diffèrent selon la nature de l’activité.  Voir Notes.</div>
+          </div>
+
+          <div style="display: flex; gap: 10px; align-items: end">
+            <button id="calcMicroBtn" type="button" class="btn">Calculer (Micro-entreprise année 1)</button>
+            <button id="resetMicroBtn" class="btn btn-reset subtle">Réinit. Micro</button>
+          </div>
+        </div>
+
+        <div class="kpi">
+          <div class="box">
+            <div class="label">CA retenu</div>
+
+            <div class="value" id="microKpiCA">–</div>
+          </div>
+
+          <div class="box">
+            <div class="label">Statut de seuil</div>
+
+            <div class="value" id="microWarning">–</div>
+          </div>
+
+          <div class="box">
+            <div class="label">Total cotisations</div>
+
+            <div class="value" id="microKpiCot">–</div>
+          </div>
+
+          <div class="box">
+            <div class="label">Rémunération nette</div>
+
+            <div class="value" id="microKpiRem">–</div>
+          </div>
+        </div>
+
+        <div id="microWarningDetail" class="hint" style="margin-top: 6px"></div>
+
+        <h3>Détail des cotisations</h3>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Poste</th>
+
+                <th class="num">% CA</th>
+
+                <th class="num">Montant</th>
+              </tr>
+            </thead>
+
+            <tbody id="tblMicro"></tbody>
+
+            <tfoot>
+              <tr>
+                <th>Total</th>
+
+                <th class="num" id="sumMicroPct">–</th>
+
+                <th class="num" id="sumMicroTot">–</th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </section>
+
+      <section class="card span-12" id="blocSALARIE" style="display: none">
+        <h2>Salariat</h2>
+
+        <div class="row">
+          <div>
+            <label for="salaireBrut">Salaire brut annuel (€)</label>
+            <input id="salaireBrut" type="number" value="50000" step="1000" />
+          </div>
+
+          <div>
+            <label for="salaireMode">Mode de saisie</label>
+            <select id="salaireMode">
+              <option value="annuel" selected>Brut annuel</option>
+
+              <option value="mensuel">Brut mensuel ×12</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div><label for="salaireGrow">Croissance salaire (% / an)</label> <input id="salaireGrow" type="number" value="3" /></div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="variablePct">Variable (% du brut)</label>
+            <input id="variablePct" type="number" value="0" step="0.1" />
+          </div>
+
+          <div><label for="variableFixe">Variable fixe annuelle (€)</label> <input id="variableFixe" type="number" value="0" /></div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="tauxSalarial">Cotisations salariales (%)</label>
+            <input id="tauxSalarial" type="number" value="22" disabled />
+            <div class="hint">Taux moyen assimilé salarié (calculé).</div>
+          </div>
+
+          <div>
+            <label for="tauxPatronal">Cotisations patronales (%)</label>
+            <input id="tauxPatronal" type="number" value="42" disabled />
+            <div class="hint">Coût employeur moyen (calculé).</div>
+          </div>
+        </div>
+
+        <div>
+          <label for="statutSal">Statut</label>
+          <select id="statutSal">
+            <option value="noncadre" selected>Non-cadre</option>
+
+            <option value="cadre">Cadre</option>
+          </select>
+        </div>
+
+        <div style="display: flex; gap: 10px; align-items: end; margin-top: 6px">
+          <button id="calcSalarieBtn" type="button" class="btn">Calculer (Salariat année 1)</button>
+          <button id="resetSalarieBtn" class="btn btn-reset subtle">Réinit. Salariat</button>
+        </div>
+
+        <div class="kpi" style="margin-top: 12px">
+          <div class="box">
+            <div class="label">Salaire brut retenu</div>
+
+            <div class="value" id="salBrutKpi">–</div>
+          </div>
+
+          <div class="box">
+            <div class="label">Charges salariales</div>
+
+            <div class="value" id="salChargesSalariales">–</div>
+          </div>
+
+          <div class="box">
+            <div class="label">Charges patronales</div>
+
+            <div class="value" id="salChargesPatronales">–</div>
+          </div>
+
+          <div class="box">
+            <div class="label">Super brut (coût employeur)</div>
+
+            <div class="value" id="salSuperBrut">–</div>
+          </div>
+
+          <div class="box">
+            <div class="label">Net dirigeant (avant IR)</div>
+
+            <div class="value" id="salNet">–</div>
+          </div>
+        </div>
+
+        <h3>Détail des cotisations (salarié / employeur)</h3>
+
+        <div class="table-wrapper">
+          <table id="tblSalariatDetail" class="detail-cotisations">
+            <colgroup>
+              <col style="width: 38%" />
+
+              <col style="width: 12%" />
+
+              <col style="width: 10%" />
+
+              <col style="width: 13%" />
+
+              <col style="width: 10%" />
+
+              <col style="width: 13%" />
+            </colgroup>
+
+            <thead>
+              <tr>
+                <th>Poste</th>
+
+                <th class="num">Base</th>
+
+                <th class="num">Tauxch. salariales (%)</th>
+
+                <th class="num">Montantch. salariales (€)</th>
+
+                <th class="num">Tauxch. patronales (%)</th>
+
+                <th class="num">Montant ch.patronales (€)</th>
+              </tr>
+            </thead>
+
+            <tbody></tbody>
+
+            <tfoot>
+              <tr class="summary">
+                <td>Total</td>
+
+                <td class="num" id="total-base">Brut</td>
+
+                <td class="num" id="total-sal-pct">–</td>
+
+                <td class="num" id="total-sal-mt">–</td>
+
+                <td class="num" id="total-emp-pct">–</td>
+
+                <td class="num" id="total-emp-mt">–</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </section>
+
+      <section class="card span-12">
+        <h2>Impôt sur le revenu du foyer + Net dispo (année 1)</h2>
+
+        <div class="row">
+          <div><label for="parts">Nombre de parts</label><input id="parts" type="number" value="2" /></div>
+
+          <div>
+            <label for="syncSource">Source salaire imposable</label>
+            <select id="syncSource">
+              <option value="auto" selected>Auto (mode principal)</option>
+
+              <option value="manual">Manuel</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <h3>Vos revenus à l'IR</h3>
+            <label for="rSal">Salaires imposables (après -10 %) €</label><input id="rSal" type="number" value="0" />
+            <label for="rBnc">BNC/Bénéfices transparents €</label><input id="rBnc" type="number" value="0" />
+            <label for="rDivIR">Dividendes imposables au barème (après abattement 40 %) €</label><input id="rDivIR" type="number" value="0" />
+
+            <div class="hint">
+              Le <b>RNI</b> est la base <b>imposable</b> du foyer. Le <b>Net foyer</b> = encaissements (selon mode choisi) − IR. Ils diffèrent car le
+              <b>Net</b> est une logique <b>cash</b> (incluant PFU/PS éventuels), alors que le <b>RNI</b> suit la logique <b>fiscale</b>.
+            </div>
+          </div>
+
+          <div>
+            <h3>Conjoint(e) micro-BNC</h3>
+            <label for="caSpouse">CA annuel (année 1) €</label><input id="caSpouse" type="number" value="36000" />
+            <label for="growth">Croissance annuelle conjoint (%)</label><input id="growth" type="number" value="5" />
+            <label for="spouseActivity">Type activité conjoint(e)</label
+            ><select id="spouseActivity">
+              <option value="bnc" selected>Prof. libérales non régl. (BNC)–26,1 %</option>
+
+              <option value="service">Prestations BIC–21,2 %</option>
+
+              <option value="cipav">Prof. libérales CIPAV–23,2 %</option>
+
+              <option value="commerce">Commerce–12,3 %</option></select
+            ><label><input type="checkbox" id="spouseACRE" /> ACRE année 1</label>
+            <div class="muted" style="font-size: 12px">Base imposable conjointe ≈ 66 % × (CA mensuel × 12).</div>
+          </div>
+        </div>
+
+        <div class="row" style="margin-top: 8px">
+          <div>
+            <label for="deductCsg">Déduire CSG 6,8 % (TNS) de l'assiette IR ?</label>
+            <select id="deductCsg">
+              <option value="1" selected>Oui</option>
+
+              <option value="0">Non</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="cashOpts">Encaissements à considérer pour le net</label>
+            <select id="cashOpts">
+              <option value="you_plus_spouse">Vous + Conjoint(e)</option>
+
+              <option value="you_only">Vous seul</option>
+            </select>
+
+            <div class="hint">Synchronisé automatiquement sur le <b>mode principal</b>.</div>
+          </div>
+        </div>
+
+        <div class="kpi">
+          <div class="box">
+            <div class="label">RNI du foyer</div>
+
+            <div class="value" id="rniFoyer">–</div>
+          </div>
+
+          <div class="box">
+            <div class="label">IR estimé (hors crédits)</div>
+
+            <div class="value" id="irOut">–</div>
+          </div>
+
+          <div class="box">
+            <div class="label">Net dispo (foyer)</div>
+
+            <div class="value" id="netFoyer">–</div>
+          </div>
+
+          <div class="box">
+            <div class="label">TMI estimée</div>
+
+            <div class="value" id="tmiOut">–</div>
+          </div>
+        </div>
+
+        <h3 style="margin-top: 12px">Détail IR par tranches</h3>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Tranche</th>
+
+                <th class="num">Base taxée</th>
+
+                <th class="num">Taux</th>
+
+                <th class="num">Impôt</th>
+              </tr>
+            </thead>
+
+            <tbody id="tblIr"></tbody>
+
+            <tfoot>
+              <tr>
+                <th>Total (par part)</th>
+
+                <th class="num" id="sumBasePart">–</th>
+
+                <th></th>
+
+                <th class="num" id="sumTaxPart">–</th>
+              </tr>
+
+              <tr>
+                <th>Total foyer</th>
+
+                <th class="num" id="sumBaseFoyer">–</th>
+
+                <th></th>
+
+                <th class="num" id="sumTaxFoyer">–</th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div class="console" id="consoleIR"></div>
+      </section>
+
+      <section class="card span-12">
+        <h2>Projection pluriannuelle</h2>
+
+        <div class="row">
+          <div class="muted">
+            Barème IR indexé par votre inflation, PASS et SMIC évolutifs, revenus et paramètres de chaque mode actualisés chaque année.
+          </div>
+
+          <div style="text-align: right">
+            <button id="projectYearsBtn" type="button" class="btn">Calculer la projection</button>
+          </div>
+        </div>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr id="projHeaderRow"></tr>
+            </thead>
+
+            <tbody id="tblProj"></tbody>
+
+            <tfoot id="projFooter"></tfoot>
+          </table>
+        </div>
+      </section>
+
+      <section class="card span-12" id="notes">
+        <h2>Notes & Sources</h2>
+        <div id="notes-tabs" class="tabs">
+          <button type="button" class="tab btn btn-secondary active" data-note="howto">Guide d’utilisation</button>
+          <button type="button" class="tab btn btn-secondary" data-note="params">Paramètres & hypothèses</button>
+          <button type="button" class="tab btn btn-secondary" data-note="sources">Sources officielles</button>
+        </div>
+        <div id="noteContent" style="margin-top: 10px; line-height: 1.6"></div>
+      </section>
+    </div>
+
+    <script type="module" src="./src/main.js" defer></script>
+  </body>
+</html>

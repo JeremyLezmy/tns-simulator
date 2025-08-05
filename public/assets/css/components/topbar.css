@@ -1,0 +1,132 @@
+/* Header global (nouveau) */
+.app-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 60;
+  backdrop-filter: blur(8px);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+.app-header.unpinned {
+  position: static;
+}
+:root[data-theme="dark"] .app-header {
+  background: rgba(18, 27, 48, 0.6);
+}
+:root[data-theme="light"] .app-header {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* Titre de l'application (nouveau) */
+.app-title {
+  padding: 10px 16px;
+  font-weight: 700;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.1);
+}
+:root[data-theme="light"] .app-title {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+/* Topbar (simplifiée) - ne gère plus que les contrôles */
+.topbar {
+  /* Les propriétés de positionnement ont été déplacées vers .app-header */
+  width: 100%;
+}
+.topbar .container {
+  display: flex;
+  align-items: center;
+  justify-content: center; /* Centre les contrôles */
+  padding: 10px 16px;
+  gap: 6px;
+}
+.actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center; /* Centre les contrôles */
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: 0 6px 14px var(--shadow);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.pill label {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0;
+  flex: 0 1 100%;
+}
+.pill select,
+.pill button {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* ... (le reste des styles comme .tabs, etc., reste identique) ... */
+@media (max-width: 840px) {
+  .topbar .container,
+  .actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+  .pill {
+    width: 100%;
+  }
+}
+
+/* Style pour le bouton d'épinglage */
+#pinBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center; /* Centre le contenu (emoji + texte) */
+  gap: 6px;
+  font-size: 16px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  cursor: pointer;
+
+  /* LA CORRECTION : on définit une largeur minimale */
+  min-width: 140px;
+
+  /* Une petite transition pour la douceur */
+  transition: background-color 0.2s ease;
+}
+
+#pinBtn:hover {
+  background: var(--soft);
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.tab {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+  cursor: pointer;
+}
+.tab.active {
+  outline: 2px solid var(--accent);
+}
+.tabs .tab.btn-secondary.active {
+  outline: 2px solid var(--accent);
+  box-shadow: 0 0 8px -2px var(--accent);
+}

@@ -1,0 +1,120 @@
+/* Tables & Data Display */
+.table-wrapper {
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+}
+.table-wrapper table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 700px;
+  font-size: 14px;
+}
+th,
+td {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+}
+th {
+  color: #2f3f63;
+  text-align: left;
+  font-weight: 600;
+  position: sticky;
+  /* CORRECTION : l'en-tête doit se coller au sommet de son conteneur de scroll */
+  top: 0;
+  background: var(--panel);
+  z-index: 2;
+  /* Petite astuce pour que la bordure du TH ne passe pas sous la bordure de la table */
+  box-shadow: 0 1px 0 var(--border);
+}
+:root[data-theme="dark"] th {
+  color: #cfe2ff;
+}
+td.num,
+th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  white-space: nowrap;
+}
+.stage-row td {
+  background: rgba(110, 231, 255, 0.05);
+  font-weight: 600;
+}
+
+/* Projection Table Specifics */
+.proj-blocked td {
+  background: rgba(220, 60, 60, 0.08);
+  font-weight: 600;
+  border-left: 3px solid var(--danger);
+}
+#projFooter tr.summary {
+  background: rgba(110, 231, 255, 0.08);
+  font-weight: 700;
+}
+#projFooter tr.summary td {
+  border-top: 2px solid var(--accent);
+}
+
+/* Detailed Contribution Tables */
+.detail-cotisations {
+  table-layout: fixed;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.detail-cotisations th,
+.detail-cotisations td {
+  padding: 6px 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-bottom: 1px solid var(--border);
+}
+.detail-cotisations thead th {
+  background: var(--panel);
+  z-index: 3;
+  font-weight: 600;
+  color: var(--text);
+}
+.detail-cotisations tfoot .summary {
+  border-top: 2px solid var(--accent);
+  font-weight: 700;
+}
+.detail-cotisations tr.cat-row td {
+  font-weight: 700;
+  background: var(--soft);
+  border-top: 2px solid var(--border);
+}
+#btnViewGlobal.active,
+#btnViewCharges.active {
+  outline: 2px solid var(--accent);
+}
+
+@media (max-width: 840px) {
+  .table-wrapper table {
+    min-width: unset;
+  }
+  table {
+    display: block;
+    overflow-x: auto;
+  }
+}
+
+/* Amélioration du scroll des tableaux sur mobile */
+@media (max-width: 840px) {
+  .table-wrapper {
+    /* On désactive le scroll sur le conteneur... */
+    overflow-x: initial;
+  }
+  .table-wrapper table {
+    /* ...et on l'active directement sur la table. */
+    display: block;
+    overflow-x: auto;
+  }
+}

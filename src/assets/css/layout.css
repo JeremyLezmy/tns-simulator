@@ -1,9 +1,8 @@
 /* Layout & Grid */
 .container {
-  max-width: 1400px;
-  width: min(100%, 1400px);
-  margin: 10px auto;
-  padding: 0 32px 40px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 16px 24px; /* Padding horizontal réduit pour mobile */
 }
 
 header.container {
@@ -50,13 +49,32 @@ header.container {
   .span-12 {
     grid-column: span 1;
   }
-  .row {
+  .row > div:has(> .btn) {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* Deux colonnes égales */
+    gap: 10px;
+    align-items: end;
+  }
+
+  /* On s'assure que les boutons dans ce contexte remplissent leur colonne de grille */
+  .row > div:has(> .btn) > .btn {
+    width: 100% !important; /* Remplir la colonne de la grille */
+    margin-top: 0; /* Annuler la marge ajoutée par une autre règle */
+  }
+
+  /* Cas où un seul bouton est présent, il prend toute la largeur */
+  .row > div:has(> .btn:only-child) {
     grid-template-columns: 1fr;
   }
   button.btn,
   button.btn-secondary {
     width: 100%;
     margin-top: 6px;
+  }
+  .span-12 {
+    display: grid;
+    gap: 8px;
+    margin-top: 10px;
   }
 }
 @media (min-width: 1400px) {

@@ -73,6 +73,11 @@
   min-width: 0;
 }
 
+/* On s'assure que le lien des notes est bien stylé aussi */
+.pill > a[href="#notes"] {
+  font-weight: 600;
+}
+
 @media (max-width: 840px) {
   .topbar .container,
   .actions {

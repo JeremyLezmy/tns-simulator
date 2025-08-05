@@ -1,27 +1,3 @@
-/* Card & KPI Components */
-@media (max-width: 840px) {
-  .kpi {
-    display: grid;
-    /* Crée une grille responsive : 2 colonnes si possible, sinon 1 */
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 8px;
-  }
-  .box {
-    min-width: 0;
-    padding: 8px 10px;
-    /* On remet le label au-dessus de la valeur, c'est plus lisible dans une grille */
-    flex-direction: column;
-    justify-content: center;
-    align-items: flex-start;
-  }
-  .box .label {
-    font-size: 11px;
-  }
-  .box .value {
-    font-size: 16px;
-  }
-}
-
 .card {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
   border: 1px solid var(--border);
@@ -65,11 +41,28 @@
 
 @media (max-width: 840px) {
   .kpi {
-    flex-direction: column;
-    gap: 8px;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px; /* Un peu plus d'espace */
   }
   .box {
-    min-width: 0;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column; /* Label au-dessus de la valeur */
+    justify-content: center;
+    min-width: unset;
+  }
+  .box .label {
+    font-size: 11px; /* Police plus petite */
+    color: var(--muted);
+    line-height: 1.3;
+  }
+
+  .box .value {
+    font-size: 16px; /* Police plus petite */
+    font-weight: 700;
   }
 }
 

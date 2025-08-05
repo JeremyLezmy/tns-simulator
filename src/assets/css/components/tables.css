@@ -9,20 +9,6 @@
   padding-bottom: 1em; /* Augmente la zone de "grip" pour le scroll */
 }
 
-/* Ombre subtile pour indiquer que la table peut défiler */
-.table-wrapper::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 1em; /* S'arrête au niveau du padding */
-  width: 15px;
-  background: linear-gradient(to left, var(--bg), transparent);
-  pointer-events: none; /* Pour ne pas bloquer les clics */
-  opacity: 1;
-  transition: opacity 0.2s ease-in-out;
-}
-
 /* Cache l'ombre quand on est au bout du scroll (avancé) */
 .table-wrapper:has(table:scrolled-to-end)::after {
   opacity: 0;
@@ -149,24 +135,24 @@ th.num {
 }
 
 @media (max-width: 840px) {
-  .table-wrapper table {
-    min-width: unset;
-  }
-  table {
-    display: block;
-    overflow-x: auto;
-  }
-}
+  /*
+   * On annule la règle problématique de tables.css qui mettait
+   * la table en `display: block` et le wrapper en `overflow: initial`.
+   * Le comportement par défaut du .table-wrapper (`overflow-x: auto`)
+   * est exactement ce que nous voulons sur mobile.
+   * La table, elle, doit rester un `display: table`.
+   */
 
-/* Amélioration du scroll des tableaux sur mobile */
-@media (max-width: 840px) {
+  /* On s'assure que le wrapper est le seul à scroller */
   .table-wrapper {
-    /* On désactive le scroll sur le conteneur... */
-    overflow-x: initial;
+    overflow-x: auto; /* Force le scroll sur le conteneur */
+    -webkit-overflow-scrolling: touch; /* Améliore le scroll sur iOS */
   }
+
+  /* On empêche la table de scroller elle-même, c'est le rôle du wrapper */
   .table-wrapper table {
-    /* ...et on l'active directement sur la table. */
-    display: block;
-    overflow-x: auto;
+    display: table; /* On conserve l'affichage tabulaire ! */
+    overflow-x: initial; /* On désactive le scroll sur la table elle-même */
+    min-width: 600px; /* On force une largeur minimale pour déclencher le scroll si besoin */
   }
 }

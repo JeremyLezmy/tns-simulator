@@ -7,7 +7,7 @@ import { getItem, setItem } from "../utils/storage.js";
 
 const PIN_STORAGE_KEY = "simv122_pin";
 const HEADER_ID = "app-header";
-const SPACER_ID = "app-header-spacer"; // <-- ID MIS À JOUR ICI
+const SPACER_ID = "app-header-spacer";
 
 function refreshHeaderHeight() {
   const header = document.getElementById(HEADER_ID);
@@ -18,7 +18,7 @@ function refreshHeaderHeight() {
 
 function updateSpacerVisibility() {
   const header = document.getElementById(HEADER_ID);
-  const spacer = document.getElementById(SPACER_ID); // <-- ID MIS À JOUR ICI
+  const spacer = document.getElementById(SPACER_ID);
   if (!header || !spacer) return;
 
   const isPinned = !header.classList.contains("unpinned");
@@ -30,7 +30,8 @@ function updateSpacerVisibility() {
   }
 }
 
-function setPinUI(isPinned) {
+// ✅ MODIFICATION 1 : On ajoute un paramètre `isInitialLoad`
+function setPinUI(isPinned, isInitialLoad = false) {
   const header = document.getElementById(HEADER_ID);
   const btn = document.getElementById("pinBtn");
   const emoji = document.getElementById("pinEmoji");
@@ -58,14 +59,17 @@ function setPinUI(isPinned) {
     refreshHeaderHeight();
     updateSpacerVisibility();
 
-    requestAnimationFrame(() => {
-      const rectAfter = refElement ? refElement.getBoundingClientRect() : { top: 0 };
-      const shift = rectAfter.top - rectBefore.top;
+    // ✅ MODIFICATION 2 : On n'exécute le scroll que si ce n'est PAS le chargement initial
+    if (!isInitialLoad) {
+      requestAnimationFrame(() => {
+        const rectAfter = refElement ? refElement.getBoundingClientRect() : { top: 0 };
+        const shift = rectAfter.top - rectBefore.top;
 
-      if (Math.abs(shift) > 1) {
-        window.scrollBy(0, shift);
-      }
-    });
+        if (Math.abs(shift) > 1) {
+          window.scrollBy(0, shift);
+        }
+      });
+    }
   });
 }
 
@@ -73,18 +77,21 @@ export function handlePinToggle() {
   const header = document.getElementById(HEADER_ID);
   if (!header) return;
   const currentlyPinned = !header.classList.contains("unpinned");
+  // On appelle SANS le deuxième paramètre (il sera `false` par défaut)
   setPinUI(!currentlyPinned);
 }
 
 export function initPinbar() {
   const savedPin = getItem(PIN_STORAGE_KEY);
-  setPinUI(savedPin !== "off");
+  // ✅ MODIFICATION 3 : On passe `true` pour indiquer que c'est le chargement initial
+  setPinUI(savedPin !== "off", true);
 
   window.addEventListener("resize", () => {
     refreshHeaderHeight();
     updateSpacerVisibility();
   });
   window.addEventListener("load", () => {
+    // Ces appels sont un peu redondants mais ne font pas de mal, on les laisse.
     refreshHeaderHeight();
     updateSpacerVisibility();
   });

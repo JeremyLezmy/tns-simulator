@@ -1,0 +1,97 @@
+/* Layout & Grid */
+.container {
+  max-width: 1400px;
+  width: min(100%, 1400px);
+  margin: 10px auto;
+  padding: 0 32px 40px;
+}
+
+header.container {
+  margin-top: 24px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 16px;
+  margin-top: 16px;
+  width: 100%;
+}
+.span-4 {
+  grid-column: span 4;
+}
+.span-6 {
+  grid-column: span 6;
+}
+.span-8 {
+  grid-column: span 8;
+}
+.span-12 {
+  grid-column: span 12;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+/* éviter débordements de flex enfants */
+.row > * {
+  min-width: 0;
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 840px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+  .span-4,
+  .span-6,
+  .span-8,
+  .span-12 {
+    grid-column: span 1;
+  }
+  .row {
+    grid-template-columns: 1fr;
+  }
+  button.btn,
+  button.btn-secondary {
+    width: 100%;
+    margin-top: 6px;
+  }
+}
+@media (min-width: 1400px) {
+  .grid {
+    gap: 24px;
+  }
+}
+@media (min-width: 1600px) {
+  .container {
+    max-width: 1800px;
+    padding: 0 68px 40px;
+  }
+}
+
+/* Force view modes */
+.force-mobile .grid,
+.force-mobile .row {
+  grid-template-columns: 1fr !important;
+}
+.force-mobile .actions {
+  flex-direction: column !important;
+}
+.force-mobile .pill,
+.force-mobile select,
+.force-mobile input {
+  width: 100% !important;
+}
+.force-mobile .kpi {
+  flex-direction: column !important;
+}
+.force-desktop table {
+  display: table !important;
+  overflow: visible !important;
+}
+.force-desktop button.btn,
+.force-desktop button.btn-secondary {
+  width: auto !important;
+}

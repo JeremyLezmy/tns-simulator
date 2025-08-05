@@ -1,4 +1,4 @@
-# Simulateur de situation entrepreneuriale / salariat (France) v1.7.1 🇫🇷
+# Simulateur de situation entrepreneuriale / salariat (France) v1.8 🇫🇷
 
 ![badge-stable](https://img.shields.io/badge/version-stable-green)
 ![badge-france](https://img.shields.io/badge/pays-France-blue)
@@ -16,7 +16,7 @@
 
 <!-- ancre automatique des titres existants conservée -->
 
-- [Simulateur de situation entrepreneuriale / salariat (France) v1.7.1 🇫🇷](#simulateur-de-situation-entrepreneuriale--salariat-france-v171-)
+- [Simulateur de situation entrepreneuriale / salariat (France) v1.8 🇫🇷](#simulateur-de-situation-entrepreneuriale--salariat-france-v18-)
   - [Sommaire](#sommaire)
   - [Fonctionnalités majeures](#fonctionnalités-majeures)
   - [Prise en main rapide](#prise-en-main-rapide)
@@ -435,9 +435,47 @@ npx serve .
 ### Structure du code
 
 ```
-├── index.html        # interface utilisateur / layout
-├── styles.css        # thème / responsive / accessibilité
-├── script.js         # moteur : calculs TNS, SASU-IR, SASU-IS, micro, salariat, IR, projection
+project-root/
+├── public/                     # Tout ce qui est servi tel‑quel par le navigateur
+│   ├── index.html
+│   └── assets/
+│       ├── css/
+│       │   ├── base.css        # variables CSS, reset, tokens de couleurs
+│       │   ├── layout.css      # grid, containers, breakpoints
+│       │   └── components/
+│       │       ├── topbar.css
+│       │       ├── cards.css
+│       │       ├── tables.css
+│       │       └── …           # autres composants/sections
+│       └── img/                # icônes, logos, favicons…
+└── src/                        # Toute la logique applicative (modules ES6)
+    ├── main.js                 # point d’entrée ; bootstrap de l’appli
+    ├── utils/
+    │   ├── dom.js              # helpers $(), on(), qsAll(), etc.
+    │   ├── format.js           # fmtEUR, fmtPct, toCsvNumber…
+    │   └── storage.js          # wrapper localStorage (get, set, try/catch)
+    ├── ui/                     # gestion purement « front »
+    │   ├── theme.js
+    │   ├── pinbar.js
+    │   ├── view‑mode.js
+    │   └── exportCsv.js
+    ├── models/                 # calculs « métier » (aucun accès DOM)
+    │   ├── tns.js
+    │   ├── sasuIR.js
+    │   ├── sasuIS.js
+    │   ├── micro.js
+    │   ├── salarie.js
+    │   └── ir.js
+    └── controllers/            # com UI ⇄ models
+        ├── tnsController.js
+        ├── sasuIRController.js
+        ├── sasuISController.js
+        ├── microController.js
+        ├── salarieController.js
+        └── irController.js
+├── README
+├── LICENSE
+├── .gitignore
 ```
 
 Conventions :

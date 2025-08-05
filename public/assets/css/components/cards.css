@@ -1,0 +1,89 @@
+/* Card & KPI Components */
+@media (max-width: 840px) {
+  .kpi {
+    display: grid;
+    /* Crée une grille responsive : 2 colonnes si possible, sinon 1 */
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 8px;
+  }
+  .box {
+    min-width: 0;
+    padding: 8px 10px;
+    /* On remet le label au-dessus de la valeur, c'est plus lisible dans une grille */
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .box .label {
+    font-size: 11px;
+  }
+  .box .value {
+    font-size: 16px;
+  }
+}
+
+.card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 10px 30px var(--shadow);
+  width: 100%;
+}
+.kpi {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.box {
+  flex: 1 1 200px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.box .label {
+  font-size: 12px;
+  color: var(--muted);
+}
+.box .value {
+  font-size: 18px;
+  font-weight: 700;
+}
+.micro-warning {
+  background: rgba(255, 190, 0, 0.08);
+  border: 1px solid #ffb84d;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+@media (max-width: 840px) {
+  .kpi {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .box {
+    min-width: 0;
+  }
+}
+
+/* Compact mode */
+.compact .kpi {
+  gap: 8px;
+}
+.compact .box {
+  padding: 6px 8px;
+  flex: 20px;
+}
+.compact .box .label {
+  font-size: 11px;
+}
+.compact .box .value {
+  font-size: 16px;
+}

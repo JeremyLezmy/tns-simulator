@@ -4,6 +4,7 @@
  * Main application entry point.
  * Initializes the UI, sets up event listeners, and orchestrates the controllers.
  */
+
 import { initTheme, handleThemeChange } from "./ui/theme.js";
 import { initPinbar, handlePinToggle } from "./ui/pinbar.js";
 import { initViewMode, handleViewModeChange } from "./ui/viewmode.js";

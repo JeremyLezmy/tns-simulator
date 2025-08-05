@@ -1,0 +1,51 @@
+# Fichier : .github/workflows/deploy.yml
+
+name: Deploy to GitHub Pages
+
+on:
+  # Se déclenche à chaque fois que vous poussez du code sur la branche 'main'
+  push:
+    branches:
+      - main
+  # Permet de lancer ce workflow manuellement depuis l'onglet Actions de GitHub
+  workflow_dispatch:
+
+# Autorisations nécessaires pour que l'action puisse publier sur GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout your repository
+        uses: actions/checkout@v4
+
+      # Étape de "construction" : on prépare les fichiers pour le déploiement.
+      # On crée un dossier '_site' et on y copie TOUT ce dont on a besoin.
+      - name: Build the site
+        run: |
+          mkdir _site
+          cp -r public/* _site/
+          cp -r src _site/
+
+      # On met en ligne l'artefact (le dossier _site) pour que le job de déploiement puisse l'utiliser
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: "./_site"
+
+  deploy:
+    # Le déploiement ne commence qu'une fois la construction terminée
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      # L'action magique qui déploie l'artefact sur GitHub Pages
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

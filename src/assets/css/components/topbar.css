@@ -21,13 +21,12 @@
 /* Titre de l'application (nouveau) */
 .app-title {
   padding: 10px 16px;
-  font-weight: 700;
+  font-weight: 800;
   text-align: center;
-  border-bottom: 1px solid var(--border);
-  background: rgba(0, 0, 0, 0.1);
-}
-:root[data-theme="light"] .app-title {
-  background: rgba(0, 0, 0, 0.03);
+  /* On supprime la bordure et le fond pour qu'il soit transparent */
+  border-bottom: none;
+  background: transparent;
+  font-size: clamp(16px, 2.5vw, 25px);
 }
 
 /* Topbar (simplifiée) - ne gère plus que les contrôles */

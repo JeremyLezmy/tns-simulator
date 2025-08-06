@@ -157,3 +157,20 @@ th.num {
     min-width: 600px; /* On force une largeur minimale pour déclencher le scroll si besoin */
   }
 }
+
+/* ================================================= */
+/* == Styles pour les avertissements de la table de projection == */
+/* ================================================= */
+
+/* Style pour le surlignage "Sortie imminente" */
+tr.proj-warning-imminent > td {
+  background-color: rgba(255, 193, 7, 0.1); /* Jaune avec 10% d'opacité */
+  font-style: italic; /* Suggestion : un peu d'italique pour attirer l'oeil */
+}
+
+/* Style pour le surlignage "Dépassement" */
+tr.proj-warning-exceeded > td {
+  background-color: rgba(244, 67, 54, 0.12); /* Rouge avec 12% d'opacité */
+  font-weight: 600;
+  font-style: italic; /* Suggestion : un peu de gras pour signifier l'importance */
+}

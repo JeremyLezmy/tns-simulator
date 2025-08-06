@@ -170,7 +170,7 @@ function projectTnsYear(i, p) {
 
   const rowData = [p.year, p.pass, ca, res.R, totalCot, RNI, totalIR, net / 12, net];
   const sumsToAdd = { ca, r: res.R, cot: totalCot, net };
-  return { rowData, sumsToAdd };
+  return { rowData, sumsToAdd, rowClass: "" };
 }
 
 function projectSasuIrYear(i, p) {
@@ -192,7 +192,7 @@ function projectSasuIrYear(i, p) {
 
   const rowData = [p.year, p.pass, salaire, bnc, res.psDue, RNI, totalIR, net / 12, net];
   const sumsToAdd = { r: salaire, bnc, cot: res.psDue, net };
-  return { rowData, sumsToAdd };
+  return { rowData, sumsToAdd, rowClass: "" };
 }
 
 function projectSasuIsYear(i, p) {
@@ -241,7 +241,7 @@ function projectSasuIsYear(i, p) {
     net,
   ];
   const sumsToAdd = { ca, r: salBrut, divBrut: res.divBrut, divNet: res.divNet, cot: res.totalTaxes, net };
-  return { rowData, sumsToAdd };
+  return { rowData, sumsToAdd, rowClass: "" };
 }
 
 function projectMicroYear(i, p, consecutiveExceeds) {
@@ -264,12 +264,23 @@ function projectMicroYear(i, p, consecutiveExceeds) {
 
   const threshold = MICRO_THRESHOLDS[activity] || 0;
   let warningText = "✅ OK";
-  if (consecutiveExceeds >= 2) warningText = "⚠️ Sortie imminente";
-  else if (ca > threshold) warningText = "⚠️ Dépassement";
+
+  // ✅ NOUVELLE PARTIE : On détermine une classe CSS en fonction du statut
+  let rowClass = ""; // Par défaut, aucune classe spéciale
+
+  if (consecutiveExceeds >= 1 && consecutiveExceeds < 3) {
+    warningText = "⚠️ Sortie imminente";
+    rowClass = "proj-warning-imminent"; // Classe pour le surlignage jaune
+  } else if (ca > threshold) {
+    warningText = "❌ Dépassement";
+    rowClass = "proj-warning-exceeded"; // Classe pour le surlignage rouge
+  }
 
   const rowData = [p.year, p.pass, ca, res.cotisations, RNI, totalIR, net / 12, net, warningText];
   const sumsToAdd = { ca, cot: res.cotisations, net };
-  return { rowData, sumsToAdd };
+
+  // On retourne maintenant la donnée ET la classe
+  return { rowData, sumsToAdd, rowClass };
 }
 
 function projectSalarieYear(i, p) {
@@ -308,7 +319,7 @@ function projectSalarieYear(i, p) {
   ];
 
   const sumsToAdd = { r: salaireAnnuel, netAvantIr, cot: deco.totalEmployeur, rni: RNI, ir: totalIR, net };
-  return { rowData, sumsToAdd };
+  return { rowData, sumsToAdd, rowClass: "" };
 }
 // ===================================================================================
 // ==  MASTER FUNCTION
@@ -402,7 +413,8 @@ export function handleProjection() {
         return `<td class="num">${fmtEUR(d)}</td>`;
       })
       .join("");
-    tbody.innerHTML += `<tr>${rowHtml}</tr>`;
+    const classAttr = result.rowClass ? `class="${result.rowClass}"` : "";
+    tbody.innerHTML += `<tr ${classAttr}>${rowHtml}</tr>`;
   }
 
   // 4. Construire le pied de page avec les totaux

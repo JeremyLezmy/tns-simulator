@@ -15,6 +15,8 @@ export function calculateSasuIr(salaire, bnc, psRate) {
     salImp,
     psDue,
     rni,
-    encaissements: salaire + bnc,
+    // Les prélèvements sociaux sur la quote-part impactent le cash perçu
+    // (mais n'affectent pas la base imposable IR dans ce mode).
+    encaissements: salaire + bnc - psDue,
   };
 }

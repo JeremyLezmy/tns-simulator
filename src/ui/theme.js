@@ -23,24 +23,26 @@ export function handleThemeChange(mode) {
  */
 export function initTheme() {
   const savedTheme = getItem(THEME_STORAGE_KEY) || "dark"; // Default to dark
-  const themeSel = document.getElementById("themeSel");
-  if (themeSel) {
-    themeSel.value = savedTheme;
-  }
+  
   const toggleBtn = document.getElementById("themeToggle");
   if (toggleBtn) {
     const updateIcon = (mode) => {
-      toggleBtn.textContent = mode === "dark" ? "🌙" : mode === "light" ? "☀️" : "🌓";
+      toggleBtn.textContent = mode === "dark" ? "🌙" : "☀️";
       toggleBtn.setAttribute("aria-label", `Thème ${mode}`);
     };
+    
+    // Set initial state
     updateIcon(savedTheme);
+    
+    // Attach listener
     toggleBtn.addEventListener("click", () => {
       const current = document.documentElement.getAttribute("data-theme") || savedTheme;
       const next = current === "dark" ? "light" : "dark";
-      if (themeSel) themeSel.value = next;
       handleThemeChange(next);
       updateIcon(next);
     });
   }
+  
+  // Apply initial theme
   handleThemeChange(savedTheme);
 }

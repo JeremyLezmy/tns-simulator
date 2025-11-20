@@ -14,32 +14,17 @@
   </head>
 
   <body>
-    <header id="app-header" class="app-header">
-      <div class="app-title">Simulateur TNS & IR • v1.8</div>
-      <div class="topbar" id="topbar">
-        <div class="container">
-          <div class="actions">
-            <div class="pill">
-              <button id="themeToggle" class="icon-btn" aria-label="Basculer le thème">🌙</button>
-              <input id="themeSel" type="hidden" value="dark" />
-            </div>
-            <div class="pill">
-              <button id="pinBtn" type="button" aria-label="Épingler la barre">
-                <span id="pinEmoji">📌</span>
-                <span id="pinText">Épinglée</span>
-              </button>
-              <a href="#notes" style="text-decoration: none; color: inherit">Notes & Sources</a>
-            </div>
-          </div>
-        </div>
+    <div id="floating-controls">
+      <button id="themeToggle" class="floating-btn" aria-label="Basculer le thème">🌙</button>
+      <button id="scrollTopBtn" class="floating-btn hidden" aria-label="Haut de page">↑</button>
+    </div>
+
+    <header class="container" style="margin-top: 40px;">
+      <h1>Simulateur de Revenus & Charges</h1>
+      <div class="subtitle">
+        Comparez TNS, SASU (IR/IS), Micro et Salariat. Optimisez votre rémunération nette.<br>
+        <a href="#notes" class="subtle-link">Notes & Sources</a>
       </div>
-    </header>
-
-    <div id="app-header-spacer"></div>
-
-    <header class="container">
-      <h1>Entrée par <u>CA</u> et charges + Projection pluriannuelle</h1>
-      <div class="subtitle">Comparez modes TNS, SASU-IR, SASU-IS, Micro et Salariat — foyer complet, déclarants multiples, projection multi-années.</div>
     </header>
 
     <div class="container grid">
@@ -54,9 +39,8 @@
             </select>
           </div>
           <div>
-            <label for="parts">Parts fiscales (auto)</label>
+            <label for="parts">Parts fiscales (auto) <span id="partsHint" class="hint">Calcule automatique des parts</span></label>
             <input id="parts" type="number" value="1" readonly disabled />
-            <div id="partsHint" class="hint">Calcule automatique des parts</div>
           </div>
         </div>
 
@@ -145,13 +129,12 @@
           </div>
 
           <div>
-            <label for="deductCsg">Déduire CSG 6,8 % (TNS) de l'assiette IR ?</label>
+            <label for="deductCsg">Déduire CSG 6,8 % (TNS) de l'assiette IR ? <span id="deductCsgHint" class="hint"></span></label>
             <select id="deductCsg">
               <option value="1" selected>Oui</option>
 
               <option value="0">Non</option>
             </select>
-            <div id="deductCsgHint" class="hint"></div>
           </div>
 
           <div style="display: flex; gap: 10px; align-items: end; margin-bottom: 8px">
@@ -198,9 +181,7 @@
           </div>
         </div>
 
-        <div class="hint">Les taux TNS utilisés sont des <b>taux effectifs</b> et plafonnés par le PASS ; ajustez si vos régimes diffèrent.</div>
-
-        <h3 style="margin-top: 12px">Détail cotisations</h3>
+        <h3 style="margin-top: 12px">Détail cotisations <span class="hint">Les taux TNS utilisés sont des <b>taux effectifs</b> et plafonnés par le PASS ; ajustez si vos régimes diffèrent.</span></h3>
 
         <div class="table-wrapper">
           <table>
@@ -348,14 +329,14 @@
 
         <div class="row">
           <div>
-            <label for="sisuSalaryMode">Salaire</label>
+        <div class="row">
+          <div>
+            <label for="sisuSalaryMode">Salaire <span class="hint">ℹ️ Le <b>brut annuel minimal</b> pour <b>4 trimestres</b> = <b>600 × SMIC horaire</b>. Voir Notes.</span></label>
             <select id="sisuSalaryMode">
               <option value="manual">Montant brut (manuel)</option>
 
               <option value="min4q" selected>Salaire minimal pour 4 trimestres</option>
             </select>
-
-            <div class="hint">ℹ️ Le <b>brut annuel minimal</b> pour <b>4 trimestres</b> = <b>600 × SMIC horaire</b>. Voir Notes.</div>
           </div>
 
           <div>
@@ -365,22 +346,17 @@
 
         <div class="row">
           <div>
-            <label for="rateSal">Cotisations salariales (%)</label> <input id="rateSal" type="number" value="0" disabled />
-
-            <div class="hint">Taux effectif calculé (assimilé salarié).</div>
+            <label for="rateSal">Cotisations salariales (%) <span class="hint">Taux effectif calculé (assimilé salarié).</span></label> <input id="rateSal" type="number" value="0" disabled />
           </div>
 
           <div>
-            <label for="ratePat">Charges patronales (%)</label> <input id="ratePat" type="number" value="0" disabled />
-
-            <div class="hint">Taux effectif calculé (hors exonérations).</div>
+            <label for="ratePat">Charges patronales (%) <span class="hint">Taux effectif calculé (hors exonérations).</span></label> <input id="ratePat" type="number" value="0" disabled />
           </div>
         </div>
 
         <div class="row">
           <div>
-            <label for="isRedThr">Seuil IS réduit 15 % (€/an)</label><input id="isRedThr" type="number" value="42500" />
-            <div class="hint">Seuil PME éligible (CGI art. 219).</div>
+            <label for="isRedThr">Seuil IS réduit 15 % (€/an) <span class="hint">Seuil PME éligible (CGI art. 219).</span></label><input id="isRedThr" type="number" value="42500" />
           </div>
 
           <div><label for="isRate">IS taux normal (%)</label><input id="isRate" type="number" value="25" /></div>
@@ -519,7 +495,8 @@
 
         <div class="row">
           <div>
-            <label for="microActivity">Type d’activité</label>
+            <label for="microActivity">Type d’activité <span class="hint">Les seuils de CA annuels diffèrent selon la nature de l’activité.  Voir Notes.<br />
+            Abattement forfaitaire : 71 % commerce, 50 % services, 34 % BNC/CIPAV.</span></label>
             <select id="microActivity">
               <option value="service">Prestations commerciales / artisanales (BIC)– 21,2 %</option>
 
@@ -529,11 +506,8 @@
 
               <option value="commerce">Vente de marchandises / hébergement–12,3 %</option>
             </select>
-            <label><input type="checkbox" id="microACRE" /> Bénéficie de l’ACRE (année1)</label>
-            <div class="hint">Réduction de 50 % des cotisations la 1<sup>ère</sup> année.</div>
 
-            <div class="hint">Les seuils de CA annuels diffèrent selon la nature de l’activité.  Voir Notes.</div>
-            <div class="hint">Abattement forfaitaire : 71 % commerce, 50 % services, 34 % BNC/CIPAV.</div>
+            <label style="margin-top: 12px; display: flex; align-items: center; gap: 6px;"><input type="checkbox" id="microACRE" /> Bénéficie de l’ACRE (année1) <span class="hint">Réduction de 50 % des cotisations la 1<sup>ère</sup> année.</span></label>
           </div>
 
           <div style="display: flex; gap: 10px; align-items: end; margin-bottom: 8px">
@@ -550,7 +524,7 @@
           </div>
 
           <div class="box">
-            <div class="label">Statut de seuil</div>
+            <div class="label">Statut de seuil <span id="microWarningDetail" class="hint"></span></div>
 
             <div class="value" id="microWarning">–</div>
           </div>
@@ -567,8 +541,6 @@
             <div class="value" id="microKpiRem">–</div>
           </div>
         </div>
-
-        <div id="microWarningDetail" class="hint" style="margin-top: 6px"></div>
 
         <h3>Détail des cotisations</h3>
 
@@ -633,15 +605,13 @@
 
         <div class="row">
           <div>
-            <label for="tauxSalarial">Cotisations salariales (%)</label>
+            <label for="tauxSalarial">Cotisations salariales (%) <span class="hint">Taux moyen assimilé salarié (calculé).</span></label>
             <input id="tauxSalarial" type="number" value="22" disabled />
-            <div class="hint">Taux moyen assimilé salarié (calculé).</div>
           </div>
 
           <div>
-            <label for="tauxPatronal">Cotisations patronales (%)</label>
+            <label for="tauxPatronal">Cotisations patronales (%) <span class="hint">Coût employeur moyen (calculé).</span></label>
             <input id="tauxPatronal" type="number" value="42" disabled />
-            <div class="hint">Coût employeur moyen (calculé).</div>
           </div>
         </div>
 

@@ -6,7 +6,6 @@
  */
 
 import { initTheme, handleThemeChange } from "./ui/theme.js";
-import { initPinbar, handlePinToggle } from "./ui/pinbar.js";
 import { initViewMode, handleViewModeChange } from "./ui/viewmode.js";
 import { initNotes, handleNoteTabClick } from "./ui/notes.js";
 import { handleRoundingChange } from "./controllers/irController.js";
@@ -218,6 +217,14 @@ function handleDeclarantTabClick(decKey) {
   snapshotActiveDeclarant();
   restoreDeclarant(decKey);
 
+  // Sync projection scope if it was set to a specific declarant
+  if (appState.projectionScope === "d1" || appState.projectionScope === "d2") {
+    appState.projectionScope = decKey;
+    document.getElementById("projTabD1")?.classList.toggle("active", decKey === "d1");
+    document.getElementById("projTabD2")?.classList.toggle("active", decKey === "d2");
+    handleProjection();
+  }
+
   const d1Tab = document.getElementById("tab-d1");
   const d2Tab = document.getElementById("tab-d2");
   if (d1Tab && d2Tab) {
@@ -288,15 +295,34 @@ function updateAllCalculations() {
   switchMode(mode);
 }
 
+function initFloatingControls() {
+  const scrollBtn = document.getElementById("scrollTopBtn");
+  // Theme toggle is handled in ui/theme.js
+
+  if (scrollBtn) {
+    window.addEventListener("scroll", () => {
+      if (window.scrollY > 300) {
+        scrollBtn.classList.remove("hidden");
+      } else {
+        scrollBtn.classList.add("hidden");
+      }
+    });
+    scrollBtn.addEventListener("click", () => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  }
+}
+
 function setupEventListeners() {
   // Topbar Actions
   document.getElementById("modeSel")?.addEventListener("change", (e) => switchMode(e.target.value));
   document.getElementById("tab-d1")?.addEventListener("click", () => handleDeclarantTabClick("d1"));
   document.getElementById("tab-d2")?.addEventListener("click", () => handleDeclarantTabClick("d2"));
-  document.getElementById("themeSel")?.addEventListener("change", (e) => handleThemeChange(e.target.value));
+  // Theme is now handled in initFloatingControls, but we keep the change handler for compatibility if needed
+  // document.getElementById("themeSel")?.addEventListener("change", (e) => handleThemeChange(e.target.value));
   document.getElementById("roundSel")?.addEventListener("change", (e) => handleRoundingChange(e.target.value === "disp2" ? 2 : 0));
   document.getElementById("viewMode")?.addEventListener("change", (e) => handleViewModeChange(e.target.value));
-  document.getElementById("pinBtn")?.addEventListener("click", handlePinToggle);
+  // PinBtn removed
   document.getElementById("exportCsvBtn")?.addEventListener("click", handleExportCsv);
   document.getElementById("notes-tabs")?.addEventListener("click", (e) => {
     if (e.target.matches(".tab")) {
@@ -393,7 +419,7 @@ function setupEventListeners() {
 document.addEventListener("DOMContentLoaded", () => {
   // Initialize UI components
   initTheme();
-  initPinbar();
+  initFloatingControls();
   initViewMode();
   initNotes();
   // Init help popups

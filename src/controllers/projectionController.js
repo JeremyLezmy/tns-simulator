@@ -10,7 +10,7 @@ import { appState } from "../state.js";
 import { solveForR } from "../models/tns.js";
 import { calculateSasuIr } from "../models/sasuIR.js";
 import { calculateSasuIs, minSalaryFor4Quarters } from "../models/sasuIS.js";
-import { calculateMicro, getMicroRates, MICRO_THRESHOLDS, getAbatementRate } from "../models/micro.js";
+import { calculateMicro, MICRO_THRESHOLDS } from "../models/micro.js";
 import { decomposeSalariatContributions } from "../models/salarie.js";
 import { calculateHouseholdIr } from "../models/ir.js";
 import { handleIrCalculation } from "./irController.js";
@@ -18,121 +18,271 @@ import { handleTnsCalculation } from "./tnsController.js";
 import { handleSasuIrCalculation } from "./sasuIRController.js";
 import { handleSisuCalculation } from "./sasuISController.js";
 import { handleMicroCalculation } from "./microController.js";
-import { handleSalarieCalculation, getSalaireAnnuel } from "./salarieController.js";
+import { handleSalarieCalculation } from "./salarieController.js";
 
-function getOtherDeclarantContribution(baseKey = "d1") {
-  if (appState.household.status === "single") return { rni: 0, encaissements: 0 };
-  const otherKey = baseKey === "d1" ? "d2" : "d1";
-  const dec = appState.declarants[otherKey];
-  if (!dec) return { rni: 0, encaissements: 0 };
+// ===================================================================================
+// ==  HELPER FUNCTIONS (Data Extraction & Calculation)
+// ===================================================================================
 
-  const inputs = dec.inputs?.ir || {};
-  const chargesDeduct = Number(inputs.chargesDeduct) || 0;
-  const deductCsgOn = inputs.deductCsg === "1";
-  let rni = 0;
-  let enc = 0;
+function getInputs(dec, mode, isActive) {
+  const inputs = {};
+  const read = (key, def = 0) => {
+    if (isActive) return val(key);
+    const valStr = dec.inputs[mode]?.[key];
+    return valStr !== undefined && valStr !== "" ? parseFloat(valStr) : def;
+  };
+  const readBool = (key, def = false) => {
+    if (isActive) return document.getElementById(key)?.value === "1" || document.getElementById(key)?.checked;
+    const valStr = dec.inputs[mode]?.[key];
+    // Checkbox stored as boolean, Select stored as "1"/"0"
+    if (typeof valStr === "boolean") return valStr;
+    return valStr === "1" || valStr === "true";
+  };
+  const readStr = (key, def = "") => {
+    if (isActive) return document.getElementById(key)?.value || def;
+    return dec.inputs[mode]?.[key] || def;
+  };
 
-  switch (dec.mode) {
+  // Common IR inputs (always read from active DOM if isActive, or dec.inputs.ir)
+  const readIr = (key, def = 0) => {
+    if (isActive) return val(key);
+    const valStr = dec.inputs.ir?.[key];
+    return valStr !== undefined && valStr !== "" ? parseFloat(valStr) : def;
+  };
+  const readIrBool = (key) => {
+    if (isActive) return document.getElementById(key)?.value === "1";
+    return dec.inputs.ir?.[key] === "1";
+  };
+
+  inputs.chargesDeduct = readIr("chargesDeduct");
+  inputs.deductCsg = readIrBool("deductCsg");
+
+  switch (mode) {
+    case "tns":
+      inputs.ca = read("ca");
+      inputs.caGrow = read("caGrow");
+      inputs.chargesPct = read("chargesPct");
+      inputs.chargesFixes = read("chargesFixes");
+      inputs.includeCsg = readBool("includeCsg");
+      inputs.cfp = val("cfp"); // Global param
+      break;
+    case "sasuIR":
+      inputs.salaire = read("sasuSalaire");
+      inputs.salaireGrow = read("sasuSalaireGrow");
+      inputs.bnc = read("sasuBnc");
+      inputs.bncGrow = read("sasuBncGrow");
+      inputs.psRate = read("psRate", 0.097);
+      break;
+    case "sasuIS":
+      inputs.ca = read("sisuCA");
+      inputs.caGrow = read("sisuCAGrow");
+      inputs.chargesPct = read("sisuChargesPct");
+      inputs.chargesFix = read("sisuChargesFix");
+      inputs.salMode = readStr("sisuSalaryMode", "min4q");
+      inputs.salaire = read("sisuSalaire");
+      inputs.isRedThr = read("isRedThr");
+      inputs.isRate = read("isRate");
+      inputs.distRate = read("distRate");
+      inputs.divMode = readStr("divMode", "pfu");
+      break;
+    case "micro":
+      inputs.ca = read("microCA");
+      inputs.grow = read("microGrow");
+      inputs.activity = readStr("microActivity", "bnc");
+      inputs.acre = readBool("microACRE");
+      break;
+    case "salarie":
+      inputs.salaireBrut = read("salaireBrut");
+      inputs.salaireGrow = read("salaireGrow");
+      inputs.statut = readStr("statutSal", "noncadre");
+      inputs.modeSaisie = readStr("salaireMode", "annuel");
+      break;
+  }
+  return inputs;
+}
+
+function calculateDeclarantProjection(dec, yearIndex, commonParams, state, isActive) {
+  const mode = dec.mode;
+  const inputs = getInputs(dec, mode, isActive);
+  const res = {
+    rni: 0,
+    encaissements: 0,
+    cot: 0,
+    net: 0,
+    warning: "",
+    warningClass: "",
+    details: {}, // For mode-specific columns
+  };
+
+  // Apply deductions (charges déductibles)
+  const chargesDeduct = inputs.chargesDeduct || 0;
+
+  switch (mode) {
     case "tns": {
-      const A = dec.computed?.tns?.A || 0;
-      const R = dec.computed?.tns?.R || 0;
-      const dedCsg = deductCsgOn && A > 0 ? 0.068 * A : 0;
-      rni = Math.max(0, R * 0.9 - dedCsg);
-      enc = R;
+      const ca = inputs.ca * Math.pow(1 + inputs.caGrow / 100, yearIndex);
+      const dispo = ca * (1 - inputs.chargesPct / 100) - inputs.chargesFixes;
+      const tnsRes = solveForR(dispo, commonParams.pass, inputs.cfp, inputs.includeCsg);
+      const dedCsg = inputs.deductCsg && tnsRes.cot.A > 0 ? 0.068 * tnsRes.cot.A : 0;
+
+      res.rni = Math.max(0, tnsRes.R * 0.9 - dedCsg);
+      res.encaissements = tnsRes.R;
+      res.cot = tnsRes.cot.total;
+      res.details = { ca, r: tnsRes.R, cot: res.cot };
       break;
     }
     case "sasuIR": {
-      const data = dec.computed?.sasuIr || {};
-      rni = (data.salImp || 0) + (data.bnc || 0);
-      enc = data.encaissements || 0;
+      const salaire = inputs.salaire * Math.pow(1 + inputs.salaireGrow / 100, yearIndex);
+      const bnc = inputs.bnc * Math.pow(1 + inputs.bncGrow / 100, yearIndex);
+      const irRes = calculateSasuIr(salaire, bnc, inputs.psRate);
+
+      res.rni = irRes.rni;
+      res.encaissements = irRes.encaissements;
+      res.cot = irRes.psDue;
+      res.details = { salaire, bnc, cot: res.cot };
       break;
     }
     case "sasuIS": {
-      const data = dec.computed?.sasuIs || {};
-      rni = (data.salBrut || 0) * 0.9 + (data.divIrBase || 0);
-      enc = data.encaissements || 0;
+      const ca = inputs.ca * Math.pow(1 + inputs.caGrow / 100, yearIndex);
+      const salBrut = inputs.salMode === "min4q" ? minSalaryFor4Quarters(commonParams.smic) : inputs.salaire;
+      const isRes = calculateSasuIs(
+        ca,
+        inputs.chargesPct,
+        inputs.chargesFix,
+        salBrut,
+        inputs.isRedThr,
+        inputs.isRate / 100,
+        inputs.distRate,
+        inputs.divMode
+      );
+
+      res.rni = salBrut * 0.9 + isRes.divIrBase;
+      res.encaissements = isRes.encaissements;
+      res.cot = isRes.totalTaxes;
+      res.details = {
+        ca,
+        salBrut,
+        divBrut: isRes.divBrut,
+        divNet: isRes.divNet,
+        divMode: inputs.divMode,
+        cot: res.cot,
+      };
       break;
     }
     case "micro": {
-      const data = dec.computed?.micro || {};
-      rni = data.baseImposable || 0;
-      enc = data.remuneration || 0;
+      const ca = inputs.ca * Math.pow(1 + inputs.grow / 100, yearIndex);
+      const acreOn = yearIndex === 0 && inputs.acre;
+      const microRes = calculateMicro(ca, inputs.activity, acreOn);
+
+      res.rni = microRes.baseImposable;
+      res.encaissements = microRes.remuneration;
+      res.cot = microRes.cotisations;
+
+      // Warning logic
+      const threshold = MICRO_THRESHOLDS[inputs.activity] || 0;
+      if (ca > threshold) {
+        state.consecutiveExceeds++;
+      } else {
+        state.consecutiveExceeds = 0;
+      }
+
+      if (state.consecutiveExceeds >= 1 && state.consecutiveExceeds < 3) {
+        res.warning = "⚠️ Sortie imminente";
+        res.warningClass = "proj-warning-imminent";
+      } else if (ca > threshold) {
+        res.warning = "❌ Dépassement";
+        res.warningClass = "proj-warning-exceeded";
+      } else {
+        res.warning = "✅ OK";
+      }
+      res.details = { ca, cot: res.cot };
       break;
     }
     case "salarie": {
-      const data = dec.computed?.salarie || {};
-      rni = (data.brutTotal || 0) * 0.9;
-      enc = data.netAvantIR || 0;
+      let salaireAnnuel = inputs.salaireBrut;
+      if (inputs.modeSaisie === "mensuel") salaireAnnuel *= 12;
+      salaireAnnuel *= Math.pow(1 + inputs.salaireGrow / 100, yearIndex);
+
+      const deco = decomposeSalariatContributions(salaireAnnuel, inputs.statut);
+      const netAvantIr = salaireAnnuel - deco.totalSalarie;
+      const superBrut = salaireAnnuel + deco.totalEmployeur;
+
+      res.rni = salaireAnnuel * 0.9;
+      res.encaissements = netAvantIr;
+      res.cot = deco.totalEmployeur;
+      res.details = {
+        salaireBrut: salaireAnnuel,
+        superBrut,
+        chargesSal: deco.totalSalarie,
+        netAvantIr,
+        cot: res.cot,
+      };
       break;
     }
-    default:
-      break;
   }
 
-  return { rni: rni - chargesDeduct, encaissements: enc - chargesDeduct };
+  // Deduct charges from RNI and Encaissements
+  res.rni = Math.max(0, res.rni - chargesDeduct);
+  res.encaissements = Math.max(0, res.encaissements - chargesDeduct);
+
+  return res;
 }
 
-function getSpouseDataForYear(yearIndex) {
-  // Nouvel écran foyer : on ne modélise plus un conjoint micro par défaut, la 2e personne est saisie via l’onglet Déclarant 2.
-  return { spouseCash: 0, baseSpouse: 0 };
-}
 // ===================================================================================
-// ==  HELPER FUNCTIONS (Construction de l'UI de la table)
+// ==  UI BUILDERS
 // ===================================================================================
 
 function buildProjHeader(mode, scope, showWarning) {
   let headers = [];
-  // Ces en-têtes sont maintenant une copie exacte de votre code original
   if (scope === "foyer") {
     headers = ["Année", "PASS", "RNI foyer", "IR", "Net foyer mens.", "Net foyer"];
     if (showWarning) headers.push("Warning micro");
   } else
     switch (mode) {
-    case "tns":
-      headers = ["Année", "PASS", "CA", "R", "Cotis.", "RNI", "IR", "Net mens.", "Net"];
-      break;
-    case "sasuIR":
-      headers = ["Année", "PASS", "Salaire", "Bénéfices", "PS", "RNI", "IR", "Net mens.", "Net"];
-      break;
-    case "sasuIS":
-      headers = [
-        "Année",
-        "PASS",
-        "SMIC h.",
-        "Mode",
-        "CA",
-        "Salaire brut",
-        "Dividendes bruts",
-        "Dividendes nets",
-        "Mode div.",
-        "Cotis/IS/PS",
-        "RNI",
-        "IR",
-        "Net mens.",
-        "Net",
-      ];
-      break;
-    case "micro":
-      headers = ["Année", "PASS", "CA", "Cotisations", "RNI", "IR", "Net mens.", "Net", "Warning micro"];
-      break;
-    case "salarie":
-      headers = [
-        "Année",
-        "PASS",
-        "SMIC h.",
-        "Mode",
-        "Salaire brut",
-        "Super brut",
-        "Charges salariales",
-        "Net avant IR",
-        "Cotis. patronales",
-        "RNI",
-        "IR",
-        "Net mens.",
-        "Net",
-      ];
-      break;
-  }
+      case "tns":
+        headers = ["Année", "PASS", "CA", "R", "Cotis.", "RNI", "IR", "Net mens.", "Net"];
+        break;
+      case "sasuIR":
+        headers = ["Année", "PASS", "Salaire", "Bénéfices", "PS", "RNI", "IR", "Net mens.", "Net"];
+        break;
+      case "sasuIS":
+        headers = [
+          "Année",
+          "PASS",
+          "SMIC h.",
+          "Mode",
+          "CA",
+          "Salaire brut",
+          "Dividendes bruts",
+          "Dividendes nets",
+          "Mode div.",
+          "Cotis/IS/PS",
+          "RNI",
+          "IR",
+          "Net mens.",
+          "Net",
+        ];
+        break;
+      case "micro":
+        headers = ["Année", "PASS", "CA", "Cotisations", "RNI", "IR", "Net mens.", "Net", "Warning micro"];
+        break;
+      case "salarie":
+        headers = [
+          "Année",
+          "PASS",
+          "SMIC h.",
+          "Mode",
+          "Salaire brut",
+          "Super brut",
+          "Charges salariales",
+          "Net avant IR",
+          "Cotis. patronales",
+          "RNI",
+          "IR",
+          "Net mens.",
+          "Net",
+        ];
+        break;
+    }
   const ths = headers
     .map((h) => `<th class="num">${h}</th>`)
     .join("")
@@ -149,285 +299,70 @@ function buildSummaryFooter(sums, mode) {
     )}</td><td></td><td class="num">${fmtEUR(sums.net)}</td>${sums.warning ? "<td></td>" : ""}`;
   } else
     switch (mode) {
-    case "salarie":
-      // CORRECTION : La structure a 13 cellules et utilise les bonnes sommes
-      cells = `<td>Total / Moyenne</td><td class="num">–</td><td class="num">–</td><td></td><td class="num">${fmtEUR(
-        sums.r
-      )}</td><td class="num">–</td><td class="num">–</td><td class="num">${fmtEUR(sums.netAvantIr)}</td><td class="num">${fmtEUR(
-        sums.cot
-      )}</td><td class="num">${fmtEUR(sums.rni)}</td><td class="num">${fmtEUR(sums.ir)}</td><td></td><td class="num">${fmtEUR(sums.net)}</td>`;
-      break;
-    case "tns":
-      cells = `<td>Total / Moyenne</td><td class="num">–</td><td class="num">${fmtEUR(sums.ca)}</td><td class="num">${fmtEUR(
-        sums.r
-      )}</td><td class="num">${fmtEUR(sums.cot)}</td><td class="num">${fmtEUR(sums.rni)}</td><td class="num">${fmtEUR(
-        sums.ir
-      )}</td><td></td><td class="num">${fmtEUR(sums.net)}</td>`;
-      break;
-    case "sasuIR":
-      cells = `<td>Total / Moyenne</td><td class="num">–</td><td class="num">${fmtEUR(sums.r)}</td><td class="num">${fmtEUR(
-        sums.bnc
-      )}</td><td class="num">${fmtEUR(sums.cot)}</td><td class="num">${fmtEUR(sums.rni)}</td><td class="num">${fmtEUR(
-        sums.ir
-      )}</td><td></td><td class="num">${fmtEUR(sums.net)}</td>`;
-      break;
-    case "sasuIS":
-      cells = `<td>Total / Moyenne</td><td class="num">–</td><td class="num">–</td><td></td><td class="num">${fmtEUR(
-        sums.ca
-      )}</td><td class="num">${fmtEUR(sums.r)}</td><td class="num">${fmtEUR(sums.divBrut)}</td><td class="num">${fmtEUR(
-        sums.divNet
-      )}</td><td >–</td><td class="num">${fmtEUR(sums.cot)}</td><td class="num">${fmtEUR(sums.rni)}</td><td class="num">${fmtEUR(
-        sums.ir
-      )}</td><td></td><td class="num">${fmtEUR(sums.net)}</td>`;
-      break;
-    case "micro":
-      cells = `<td>Total / Moyenne</td><td class="num">–</td><td class="num">${fmtEUR(sums.ca)}</td><td class="num">${fmtEUR(
-        sums.cot
-      )}</td><td class="num">${fmtEUR(sums.rni)}</td><td class="num">${fmtEUR(sums.ir)}</td><td></td><td class="num">${fmtEUR(
-        sums.net
-      )}</td><td></td>`;
-      break;
-  }
+      case "salarie":
+        cells = `<td>Total / Moyenne</td><td class="num">–</td><td class="num">–</td><td></td><td class="num">${fmtEUR(
+          sums.r
+        )}</td><td class="num">–</td><td class="num">–</td><td class="num">${fmtEUR(sums.netAvantIr)}</td><td class="num">${fmtEUR(
+          sums.cot
+        )}</td><td class="num">${fmtEUR(sums.rni)}</td><td class="num">${fmtEUR(sums.ir)}</td><td></td><td class="num">${fmtEUR(
+          sums.net
+        )}</td>`;
+        break;
+      case "tns":
+        cells = `<td>Total / Moyenne</td><td class="num">–</td><td class="num">${fmtEUR(sums.ca)}</td><td class="num">${fmtEUR(
+          sums.r
+        )}</td><td class="num">${fmtEUR(sums.cot)}</td><td class="num">${fmtEUR(sums.rni)}</td><td class="num">${fmtEUR(
+          sums.ir
+        )}</td><td></td><td class="num">${fmtEUR(sums.net)}</td>`;
+        break;
+      case "sasuIR":
+        cells = `<td>Total / Moyenne</td><td class="num">–</td><td class="num">${fmtEUR(sums.r)}</td><td class="num">${fmtEUR(
+          sums.bnc
+        )}</td><td class="num">${fmtEUR(sums.cot)}</td><td class="num">${fmtEUR(sums.rni)}</td><td class="num">${fmtEUR(
+          sums.ir
+        )}</td><td></td><td class="num">${fmtEUR(sums.net)}</td>`;
+        break;
+      case "sasuIS":
+        cells = `<td>Total / Moyenne</td><td class="num">–</td><td class="num">–</td><td></td><td class="num">${fmtEUR(
+          sums.ca
+        )}</td><td class="num">${fmtEUR(sums.r)}</td><td class="num">${fmtEUR(sums.divBrut)}</td><td class="num">${fmtEUR(
+          sums.divNet
+        )}</td><td >–</td><td class="num">${fmtEUR(sums.cot)}</td><td class="num">${fmtEUR(sums.rni)}</td><td class="num">${fmtEUR(
+          sums.ir
+        )}</td><td></td><td class="num">${fmtEUR(sums.net)}</td>`;
+        break;
+      case "micro":
+        cells = `<td>Total / Moyenne</td><td class="num">–</td><td class="num">${fmtEUR(sums.ca)}</td><td class="num">${fmtEUR(
+          sums.cot
+        )}</td><td class="num">${fmtEUR(sums.rni)}</td><td class="num">${fmtEUR(sums.ir)}</td><td></td><td class="num">${fmtEUR(
+          sums.net
+        )}</td><td></td>`;
+        break;
+    }
   tfoot.innerHTML = `<tr class="summary">${cells}</tr>`;
 }
-// ===================================================================================
-// ==  SOUS-FONCTIONS DE CALCUL (une par mode)
-// ===================================================================================
 
-function projectTnsYear(i, p, extra, foyerScope = false, warning = "") {
-  const ca = val("ca") * Math.pow(1 + val("caGrow") / 100, i);
-  const dispo = ca * (1 - val("chargesPct") / 100) - val("chargesFixes");
-  const res = solveForR(dispo, p.pass, val("cfp"), document.getElementById("includeCsg").value === "1");
-  const dedCsg = document.getElementById("deductCsg").value === "1" ? 0.068 * res.cot.A : 0;
-
-  const encaissements = res.R;
-  const rni_perso = res.R * 0.9 - dedCsg;
-  const totalCot = res.cot.total;
-  const { RNI, totalIR, net } = calculateFinals(
-    rni_perso,
-    p.spouse.baseSpouse,
-    encaissements,
-    p.spouse.spouseCash,
-    p.parts,
-    p.inflationIndex,
-    i === 0,
-    extra,
-    foyerScope
-  );
-
-  let rowData, sumsToAdd;
-  if (foyerScope) {
-    rowData = [p.year, p.pass, RNI, totalIR, net / 12, net];
-    if (warning) rowData.push(warning);
-    sumsToAdd = { rni: RNI, ir: totalIR, net, warning: warning ? 1 : 0 };
-  } else {
-    rowData = [p.year, p.pass, ca, res.R, totalCot, RNI, totalIR, net / 12, net];
-    sumsToAdd = { ca, r: res.R, cot: totalCot, net, rni: RNI, ir: totalIR };
-  }
-  return { rowData, sumsToAdd, rowClass: "" };
-}
-
-function projectSasuIrYear(i, p, extra, foyerScope = false, warning = "") {
-  const salaire = val("sasuSalaire") * Math.pow(1 + val("sasuSalaireGrow") / 100, i);
-  const bnc = val("sasuBnc") * Math.pow(1 + val("sasuBncGrow") / 100, i);
-  const res = calculateSasuIr(salaire, bnc, val("psRate"));
-
-  const encaissements = res.encaissements;
-  const rni_perso = res.rni;
-  const { RNI, totalIR, net } = calculateFinals(
-    rni_perso,
-    p.spouse.baseSpouse,
-    encaissements,
-    p.spouse.spouseCash,
-    p.parts,
-    p.inflationIndex,
-    i === 0,
-    extra,
-    foyerScope
-  );
-
-  let rowData, sumsToAdd;
-  if (foyerScope) {
-    rowData = [p.year, p.pass, RNI, totalIR, net / 12, net];
-    if (warning) rowData.push(warning);
-    sumsToAdd = { rni: RNI, ir: totalIR, net, warning: warning ? 1 : 0 };
-  } else {
-    rowData = [p.year, p.pass, salaire, bnc, res.psDue, RNI, totalIR, net / 12, net];
-    sumsToAdd = { r: salaire, bnc, cot: res.psDue, net, rni: RNI, ir: totalIR };
-  }
-  return { rowData, sumsToAdd, rowClass: "" };
-}
-
-function projectSasuIsYear(i, p, extra, foyerScope = false, warning = "") {
-  const ca = val("sisuCA") * Math.pow(1 + val("sisuCAGrow") / 100, i);
-  const salMode = document.getElementById("sisuSalaryMode").value;
-  const divMode = document.getElementById("divMode").value;
-  const salBrut = salMode === "min4q" ? minSalaryFor4Quarters(p.smic) : val("sisuSalaire");
-  const res = calculateSasuIs(
-    ca,
-    val("sisuChargesPct"),
-    val("sisuChargesFix"),
-    salBrut,
-    val("isRedThr"),
-    val("isRate") / 100,
-    val("distRate"),
-    divMode
-  );
-
-  const encaissements = res.encaissements;
-  // LA CORRECTION EST ICI : Ajout de "const"
-  const rni_perso = salBrut * 0.9 + res.divIrBase;
-  const { RNI, totalIR, net } = calculateFinals(
-    rni_perso,
-    p.spouse.baseSpouse,
-    encaissements,
-    p.spouse.spouseCash,
-    p.parts,
-    p.inflationIndex,
-    i === 0,
-    extra,
-    foyerScope
-  );
-
-  let rowData, sumsToAdd;
-  if (foyerScope) {
-    rowData = [p.year, p.pass, RNI, totalIR, net / 12, net];
-    if (warning) rowData.push(warning);
-    sumsToAdd = { rni: RNI, ir: totalIR, net, warning: warning ? 1 : 0 };
-  } else {
-    rowData = [
-      p.year,
-      p.pass,
-      p.smic,
-      "SASU-IS",
-      ca,
-      salBrut,
-      res.divBrut,
-      res.divNet,
-      divMode === "pfu" ? "PFU" : "Barème",
-      res.totalTaxes,
-      RNI,
-      totalIR,
-      net / 12,
-      net,
-    ];
-    sumsToAdd = { ca, r: salBrut, divBrut: res.divBrut, divNet: res.divNet, cot: res.totalTaxes, net, rni: RNI, ir: totalIR };
-  }
-  return { rowData, sumsToAdd, rowClass: "" };
-}
-
-function projectMicroYear(i, p, consecutiveExceeds, extra, decLabel = "", foyerScope = false, warningFoyer = "") {
-  const ca = val("microCA") * Math.pow(1 + val("microGrow") / 100, i);
-  const activity = document.getElementById("microActivity").value;
-  const acreOn = i === 0 && document.getElementById("microACRE").checked;
-  const res = calculateMicro(ca, activity, acreOn);
-
-  const encaissements = res.remuneration;
-  const rni_perso = res.baseImposable;
-  const { RNI, totalIR, net } = calculateFinals(
-    rni_perso,
-    p.spouse.baseSpouse,
-    encaissements,
-    p.spouse.spouseCash,
-    p.parts,
-    p.inflationIndex,
-    i === 0,
-    extra,
-    foyerScope
-  );
-
-  const threshold = MICRO_THRESHOLDS[activity] || 0;
-  let warningText = foyerScope && warningFoyer ? warningFoyer : decLabel ? `[${decLabel}] ✅ OK` : "✅ OK";
-
-  // ✅ NOUVELLE PARTIE : On détermine une classe CSS en fonction du statut
-  let rowClass = ""; // Par défaut, aucune classe spéciale
-
-  if (consecutiveExceeds >= 1 && consecutiveExceeds < 3) {
-    warningText = decLabel ? `[${decLabel}] ⚠️ Sortie imminente` : "⚠️ Sortie imminente";
-    rowClass = "proj-warning-imminent"; // Classe pour le surlignage jaune
-  } else if (ca > threshold) {
-    warningText = decLabel ? `[${decLabel}] ❌ Dépassement` : "❌ Dépassement";
-    rowClass = "proj-warning-exceeded"; // Classe pour le surlignage rouge
-  }
-
-  let rowData, sumsToAdd;
-  if (foyerScope) {
-    rowData = [p.year, p.pass, RNI, totalIR, net / 12, net];
-    if (warningText) rowData.push(warningText);
-    sumsToAdd = { rni: RNI, ir: totalIR, net };
-  } else {
-    rowData = [p.year, p.pass, ca, res.cotisations, RNI, totalIR, net / 12, net, warningText];
-    sumsToAdd = { ca, cot: res.cotisations, net, rni: RNI, ir: totalIR };
-  }
-
-  // On retourne maintenant la donnée ET la classe
-  return { rowData, sumsToAdd, rowClass };
-}
-
-function projectSalarieYear(i, p, extra, foyerScope = false, warning = "") {
-  const salaireAnnuel = getSalaireAnnuel() * Math.pow(1 + val("salaireGrow") / 100, i);
-  const deco = decomposeSalariatContributions(salaireAnnuel, document.getElementById("statutSal").value);
-  const netAvantIr = salaireAnnuel - deco.totalSalarie;
-  const superBrut = salaireAnnuel + deco.totalEmployeur;
-
-  const encaissements = netAvantIr;
-  const rni_perso = salaireAnnuel * 0.9;
-  const { RNI, totalIR, net } = calculateFinals(
-    rni_perso,
-    p.spouse.baseSpouse,
-    encaissements,
-    p.spouse.spouseCash,
-    p.parts,
-    p.inflationIndex,
-    i === 0,
-    extra,
-    foyerScope
-  );
-
-  // CORRECTION : Le tableau de données contient maintenant les 13 colonnes
-  let rowData, sumsToAdd;
-  if (foyerScope) {
-    rowData = [p.year, p.pass, RNI, totalIR, net / 12, net];
-    rowData.push(warning || "");
-    sumsToAdd = { rni: RNI, ir: totalIR, net, warning: warning ? 1 : 0 };
-  } else {
-    rowData = [
-      p.year,
-      p.pass,
-      p.smic,
-      "Salariat",
-      salaireAnnuel, // Salaire brut
-      superBrut, // Super brut
-      deco.totalSalarie, // Charges salariales
-      netAvantIr, // Net avant IR
-      deco.totalEmployeur, // Cotis. patronales
-      RNI, // RNI foyer
-      totalIR, // IR
-      net / 12, // Net foyer mens.
-      net, // Net foyer
-    ];
-    sumsToAdd = { r: salaireAnnuel, netAvantIr, cot: deco.totalEmployeur, rni: RNI, ir: totalIR, net };
-  }
-  return { rowData, sumsToAdd, rowClass: "" };
-}
 // ===================================================================================
 // ==  MASTER FUNCTION
 // ===================================================================================
+
+function getSpouseDataForYear(yearIndex) {
+  return { spouseCash: 0, baseSpouse: 0 };
+}
 
 export function handleProjection() {
   const scope = appState.projectionScope || "foyer";
   const baseKey = scope === "d2" ? "d2" : scope === "d1" ? "d1" : appState.activeDeclarant || "d1";
   const includeOther = scope === "foyer" && appState.household.status !== "single";
   const dec = appState.declarants[baseKey];
-  if (dec) {
-    document.getElementById("modeSel").value = dec.mode;
-  }
-  const mode = document.getElementById("modeSel").value;
+  const mode = dec ? dec.mode : "tns";
   const microPresent =
-    (appState.declarants.d1?.mode === "micro") || (appState.household.status !== "single" && appState.declarants.d2?.mode === "micro");
+    appState.declarants.d1?.mode === "micro" ||
+    (appState.household.status !== "single" && appState.declarants.d2?.mode === "micro");
+
   buildProjHeader(mode, scope, microPresent);
 
-  // 1. Rafraîchir les calculs de l'année 1 pour que l'état global soit à jour
+  // 1. Refresh calculations for year 1
   switch (mode) {
     case "tns":
       handleTnsCalculation(false);
@@ -447,7 +382,7 @@ export function handleProjection() {
   }
   handleIrCalculation(false);
 
-  // 2. Obtenir les paramètres initiaux
+  // 2. Init Params
   const startYear = val("startYear");
   const years = val("years");
   const y1_pass = val("pass");
@@ -458,20 +393,25 @@ export function handleProjection() {
   const tbody = document.getElementById("tblProj");
   tbody.innerHTML = "";
 
-  const sums = { ca: 0, r: 0, bnc: 0, cot: 0, net: 0, divBrut: 0, divNet: 0, netAvantIr: 0, rni: 0, ir: 0, warning: microPresent && scope === "foyer" ? 1 : 0 };
-  let consecutiveExceeds = 0;
-  const extra = includeOther ? getOtherDeclarantContribution(baseKey) : { rni: 0, encaissements: 0 };
-  const decLabel = baseKey === "d2" ? "D2" : "D1";
-  const includeWarning = scope === "foyer" && microPresent;
-  const warningFoyer =
-    includeWarning && mode !== "micro"
-      ? baseKey === "d1"
-        ? "[D2] ⚠️ Micro"
-        : "[D1] ⚠️ Micro"
-      : "";
-  const isFoyer = scope === "foyer";
+  const sums = {
+    ca: 0,
+    r: 0,
+    bnc: 0,
+    cot: 0,
+    net: 0,
+    divBrut: 0,
+    divNet: 0,
+    netAvantIr: 0,
+    rni: 0,
+    ir: 0,
+    warning: microPresent && scope === "foyer" ? 1 : 0,
+  };
 
-  // 3. Boucler sur chaque année
+  // State for consecutive exceeds (Micro)
+  const d1State = { consecutiveExceeds: 0 };
+  const d2State = { consecutiveExceeds: 0 };
+
+  // 3. Loop Years
   for (let i = 0; i < years; i++) {
     const commonParams = {
       year: startYear + i,
@@ -482,75 +422,141 @@ export function handleProjection() {
       inflationIndex: (val("inflation") / 100) * i,
     };
 
-    let result;
-    switch (mode) {
-      case "tns":
-        result = projectTnsYear(i, commonParams, extra, isFoyer, warningFoyer);
-        break;
-      case "sasuIR":
-        result = projectSasuIrYear(i, commonParams, extra, isFoyer, warningFoyer);
-        break;
-      case "sasuIS":
-        result = projectSasuIsYear(i, commonParams, extra, isFoyer, warningFoyer);
-        break;
-      case "micro":
-        const ca_current = val("microCA") * Math.pow(1 + val("microGrow") / 100, i);
-        const threshold = MICRO_THRESHOLDS[document.getElementById("microActivity").value] || 0;
-        consecutiveExceeds = ca_current > threshold ? consecutiveExceeds + 1 : 0;
-        result = projectMicroYear(i, commonParams, consecutiveExceeds, extra, decLabel, isFoyer, warningFoyer);
-        break;
-      case "salarie":
-        result = projectSalarieYear(i, commonParams, extra, isFoyer, warningFoyer);
-        break;
-      default:
-        result = { rowData: [], sumsToAdd: {} };
+    // Calculate Base Declarant
+    const isActiveBase = baseKey === (appState.activeDeclarant || "d1");
+    const resBase = calculateDeclarantProjection(dec, i, commonParams, baseKey === "d1" ? d1State : d2State, isActiveBase);
+
+    // Calculate Other Declarant (if Foyer)
+    let resOther = { rni: 0, encaissements: 0, warning: "", warningClass: "" };
+    if (includeOther) {
+      const otherKey = baseKey === "d1" ? "d2" : "d1";
+      const otherDec = appState.declarants[otherKey];
+      const isActiveOther = otherKey === (appState.activeDeclarant || "d1");
+      resOther = calculateDeclarantProjection(otherDec, i, commonParams, otherKey === "d1" ? d1State : d2State, isActiveOther);
     }
 
-    // Mettre à jour les totaux
-    for (const key in result.sumsToAdd) {
-      if (sums.hasOwnProperty(key)) {
-        sums[key] += result.sumsToAdd[key];
+    // Combine RNI & Encaissements
+    const totalRNI = resBase.rni + resOther.rni;
+    const totalEnc = resBase.encaissements + resOther.encaissements;
+
+    // Calculate IR & Net Foyer
+    const irResult = calculateHouseholdIr(0, totalRNI, 0, 0, 0, commonParams.parts, commonParams.inflationIndex);
+    let totalIR = irResult.totalIR;
+    let netFoyer = totalEnc - totalIR;
+
+    // Override Year 1 with exact values if needed (optional, but keeps consistency with main panel)
+    if (i === 0 && scope === "foyer") {
+      // We can use appState.ir values if we trust them to be up to date
+      // But our calculation above should be accurate enough.
+    }
+
+    // Prepare Row Data
+    let rowData = [];
+    let rowClass = resBase.warningClass || resOther.warningClass || "";
+
+    if (scope === "foyer") {
+      rowData = [commonParams.year, commonParams.pass, totalRNI, totalIR, netFoyer / 12, netFoyer];
+      if (microPresent) {
+        const w1 = resBase.warning && resBase.warning !== "✅ OK" ? `[${baseKey.toUpperCase()}] ${resBase.warning}` : "";
+        const w2 = resOther.warning && resOther.warning !== "✅ OK" ? `[${baseKey === "d1" ? "D2" : "D1"}] ${resOther.warning}` : "";
+        const combinedW = [w1, w2].filter(Boolean).join(" ");
+        rowData.push(combinedW || "✅ OK");
       }
+      sums.rni += totalRNI;
+      sums.ir += totalIR;
+      sums.net += netFoyer;
+    } else {
+      // Detailed view for Base Declarant
+      // We use resBase.details
+      const d = resBase.details;
+      switch (mode) {
+        case "tns":
+          rowData = [commonParams.year, commonParams.pass, d.ca, d.r, d.cot, totalRNI, totalIR, netFoyer / 12, netFoyer];
+          sums.ca += d.ca;
+          sums.r += d.r;
+          sums.cot += d.cot;
+          break;
+        case "sasuIR":
+          rowData = [commonParams.year, commonParams.pass, d.salaire, d.bnc, d.cot, totalRNI, totalIR, netFoyer / 12, netFoyer];
+          sums.r += d.salaire;
+          sums.bnc += d.bnc;
+          sums.cot += d.cot;
+          break;
+        case "sasuIS":
+          rowData = [
+            commonParams.year,
+            commonParams.pass,
+            commonParams.smic,
+            "SASU-IS",
+            d.ca,
+            d.salBrut,
+            d.divBrut,
+            d.divNet,
+            d.divMode === "pfu" ? "PFU" : "Barème",
+            d.cot,
+            totalRNI,
+            totalIR,
+            netFoyer / 12,
+            netFoyer,
+          ];
+          sums.ca += d.ca;
+          sums.r += d.salBrut;
+          sums.divBrut += d.divBrut;
+          sums.divNet += d.divNet;
+          sums.cot += d.cot;
+          break;
+        case "micro":
+          rowData = [
+            commonParams.year,
+            commonParams.pass,
+            d.ca,
+            d.cot,
+            totalRNI,
+            totalIR,
+            netFoyer / 12,
+            netFoyer,
+            resBase.warning,
+          ];
+          sums.ca += d.ca;
+          sums.cot += d.cot;
+          break;
+        case "salarie":
+          rowData = [
+            commonParams.year,
+            commonParams.pass,
+            commonParams.smic,
+            "Salariat",
+            d.salaireBrut,
+            d.superBrut,
+            d.chargesSal,
+            d.netAvantIr,
+            d.cot,
+            totalRNI,
+            totalIR,
+            netFoyer / 12,
+            netFoyer,
+          ];
+          sums.r += d.salaireBrut;
+          sums.netAvantIr += d.netAvantIr;
+          sums.cot += d.cot;
+          break;
+      }
+      sums.rni += totalRNI;
+      sums.ir += totalIR;
+      sums.net += netFoyer;
     }
 
-  // Afficher la ligne
-  const rowHtml = result.rowData
-    .map((d, index) => {
-      if (typeof d === "string") return `<td>${d}</td>`; // Pour "Mode", "Mode div.", "Statut Seuil"
-      if (index === 0) return `<td>${Math.round(d)}</td>`; // Année
-      return `<td class="num">${fmtEUR(d)}</td>`;
-    })
-    .join("");
-    const classAttr = result.rowClass ? `class="${result.rowClass}"` : "";
+    // Render Row
+    const rowHtml = rowData
+      .map((d, index) => {
+        if (typeof d === "string") return `<td>${d}</td>`;
+        if (index === 0) return `<td>${Math.round(d)}</td>`;
+        return `<td class="num">${fmtEUR(d)}</td>`;
+      })
+      .join("");
+    const classAttr = rowClass ? `class="${rowClass}"` : "";
     tbody.innerHTML += `<tr ${classAttr}>${rowHtml}</tr>`;
   }
 
-  // 4. Construire le pied de page avec les totaux
   buildSummaryFooter(sums, scope === "foyer" ? "foyer" : mode);
-}
-
-// Helper pour calculer RNI/IR/Net et gérer la cohérence avec l'année 1
-function calculateFinals(
-  rni_perso,
-  baseSpouse,
-  encaissements,
-  spouseCash,
-  parts,
-  inflationIndex,
-  isFirstYear,
-  extra = { rni: 0, encaissements: 0 },
-  useHouseholdOverride = false
-) {
-  let RNI = Math.max(0, rni_perso + baseSpouse + (extra.rni || 0));
-  const irResult = calculateHouseholdIr(0, RNI, 0, 0, 0, parts, inflationIndex);
-  let totalIR = irResult.totalIR;
-  let net = encaissements + spouseCash + (extra.encaissements || 0) - totalIR;
-
-  // Pour la première année, on utilise les valeurs exactes du panneau IR seulement pour la vue foyer
-  if (isFirstYear && useHouseholdOverride) {
-    RNI = appState.ir.RNI;
-    totalIR = appState.ir.IR;
-    net = appState.ir.net;
-  }
-  return { RNI, totalIR, net };
 }

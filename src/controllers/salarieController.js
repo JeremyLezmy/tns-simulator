@@ -112,6 +112,10 @@ export function handleSalarieCalculation(triggerProjection = false) {
     chargesPatronales: deco.totalEmployeur,
     superBrut: brutTotal + deco.totalEmployeur,
   };
+  const dec = appState.declarants[appState.activeDeclarant];
+  if (dec) {
+    dec.computed.salarie = { ...appState.salarie };
+  }
 
   // Update UI
   updateSalarieUI(brutTotal, deco);

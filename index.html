@@ -20,46 +20,8 @@
         <div class="container">
           <div class="actions">
             <div class="pill">
-              <label for="modeSel">Mode rémunération</label>
-              <select id="modeSel">
-                <option value="tns" selected>EURL/EI à l’IS (TNS)</option>
-                <option value="sasuIR">SASU à l’IR (transparence)</option>
-                <option value="sasuIS">SASU à l’IS (salaire + dividendes)</option>
-                <option value="micro">Micro-entreprise</option>
-                <option value="salarie">Salariat</option>
-              </select>
-            </div>
-            <div class="pill">
-              <label for="themeSel">Thème</label>
-              <select id="themeSel">
-                <option value="dark" selected>Sombre</option>
-                <option value="light">Clair</option>
-                <option value="auto">Auto (OS)</option>
-              </select>
-            </div>
-            <!-- <div class="pill">
-              <label for="roundSel" style="margin-left: 8px">Arr.</label>
-              <select id="roundSel" style="min-width: 70px">
-                <option value="disp0" selected>0&nbsp;€</option>
-                <option value="disp2">2&nbsp;déc.</option>
-              </select>
-            </div> -->
-            <!-- <div class="pill">
-              <label for="viewMode">Affichage</label>
-              <select id="viewMode">
-                <option value="auto" selected>Auto</option>
-                <option value="mobile">Mobile</option>
-                <option value="desktop">Ordinateur</option>
-              </select>
-            </div> -->
-
-            <div class="pill">
-              <label for="csvLocale">Export CSV</label>
-              <select id="csvLocale">
-                <option value="fr" selected>Semicolon " ; "</option>
-                <option value="intl">Comma " , "</option>
-              </select>
-              <button id="exportCsvBtn" class="btn" type="button">Exporter CSV</button>
+              <button id="themeToggle" class="icon-btn" aria-label="Basculer le thème">🌙</button>
+              <input id="themeSel" type="hidden" value="dark" />
             </div>
             <div class="pill">
               <button id="pinBtn" type="button" aria-label="Épingler la barre">
@@ -77,12 +39,40 @@
 
     <header class="container">
       <h1>Entrée par <u>CA</u> et charges + Projection pluriannuelle</h1>
-      <div class="subtitle">TNS vs SASU-IR vs SASU-IS (salaire + dividendes). SMIC min. 4 trimestres, PFU/barème, projection multi-années.</div>
+      <div class="subtitle">Comparez modes TNS, SASU-IR, SASU-IS, Micro et Salariat — foyer complet, déclarants multiples, projection multi-années.</div>
     </header>
 
     <div class="container grid">
-      <section class="card span-12">
-        <h2>Paramètres généraux</h2>
+      <section class="card span-12" id="blocFoyer">
+        <h2>Foyer fiscal & Paramètres généraux</h2>
+        <div class="row" style="gap: 16px; align-items: end">
+          <div>
+            <label for="familyStatus">Statut</label>
+            <select id="familyStatus">
+              <option value="single" selected>Célibataire / séparé</option>
+              <option value="married">Marié(e) / Pacsé(e)</option>
+            </select>
+          </div>
+          <div>
+            <label for="parts">Parts fiscales (auto)</label>
+            <input id="parts" type="number" value="1" readonly disabled />
+            <div id="partsHint" class="hint">Calcule automatique des parts</div>
+          </div>
+        </div>
+
+        <div class="row" style="gap: 16px; align-items: end">
+          <div>
+            <label for="guardMode">Garde</label>
+            <select id="guardMode">
+              <option value="exclusive" selected>Charge principale / exclusive</option>
+              <option value="alternate">Garde alternée (simplifiée)</option>
+            </select>
+          </div>
+          <div>
+            <label for="childrenCount">Nombre d'enfants à charge</label>
+            <input id="childrenCount" type="number" min="0" value="0" />
+          </div>
+        </div>
 
         <div class="row">
           <div><label for="startYear">Année de départ</label><input id="startYear" type="number" value="2025" /></div>
@@ -102,6 +92,30 @@
           <div><label for="pass">PASS (année 1, €/an)</label><input id="pass" type="number" value="47100" /></div>
 
           <div><label for="cfp">CFP (forfait) € — TNS</label><input id="cfp" type="number" value="118" /></div>
+        </div>
+      </section>
+      <section class="card span-12" id="blocMode">
+        <div class="card-tabs">
+          <div class="tabs">
+            <button type="button" id="tab-d1" class="tab active">Déclarant 1</button>
+            <button type="button" id="tab-d2" class="tab disabled">Déclarant 2</button>
+          </div>
+        </div>
+        <div class="row" style="align-items: center; justify-content: space-between">
+          <div>
+            <h2 id="modeTitle">Mode principal du déclarant</h2>
+            <div class="muted">Chaque déclarant garde son mode, ses paramètres et ses résultats.</div>
+          </div>
+          <div class="pill">
+            <label for="modeSel">Mode de rémunération</label>
+            <select id="modeSel">
+              <option value="tns" selected>EURL/EI à l’IS (TNS)</option>
+              <option value="sasuIR">SASU à l’IR (transparence)</option>
+              <option value="sasuIS">SASU à l’IS (salaire + dividendes)</option>
+              <option value="micro">Micro-entreprise</option>
+              <option value="salarie">Salariat</option>
+            </select>
+          </div>
         </div>
       </section>
 
@@ -128,6 +142,16 @@
 
               <option value="0">Non</option>
             </select>
+          </div>
+
+          <div>
+            <label for="deductCsg">Déduire CSG 6,8 % (TNS) de l'assiette IR ?</label>
+            <select id="deductCsg">
+              <option value="1" selected>Oui</option>
+
+              <option value="0">Non</option>
+            </select>
+            <div id="deductCsgHint" class="hint"></div>
           </div>
 
           <div style="display: flex; gap: 10px; align-items: end; margin-bottom: 8px">
@@ -220,7 +244,7 @@
           </table>
         </div>
 
-        <div class="console" id="console"></div>
+        <!-- <div class="console" id="console"></div> -->
       </section>
 
       <section class="card span-12" id="blocSASU" style="display: none">
@@ -509,6 +533,7 @@
             <div class="hint">Réduction de 50 % des cotisations la 1<sup>ère</sup> année.</div>
 
             <div class="hint">Les seuils de CA annuels diffèrent selon la nature de l’activité.  Voir Notes.</div>
+            <div class="hint">Abattement forfaitaire : 71 % commerce, 50 % services, 34 % BNC/CIPAV.</div>
           </div>
 
           <div style="display: flex; gap: 10px; align-items: end; margin-bottom: 8px">
@@ -725,70 +750,23 @@
         <h2>Impôt sur le revenu du foyer + Net dispo (année 1)</h2>
 
         <div class="row">
-          <div><label for="parts">Nombre de parts</label><input id="parts" type="number" value="2" /></div>
-
-          <div>
-            <label for="syncSource">Source salaire imposable</label>
-            <select id="syncSource">
-              <option value="auto" selected>Auto (mode principal)</option>
-
-              <option value="manual">Manuel</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="row">
           <div>
             <h3>Vos revenus à l'IR</h3>
             <label id="lblRSal" for="rSal">Salaires imposables (après -10 %) €</label><input id="rSal" type="number" value="0" />
             <label for="rBnc">BNC/Bénéfices transparents €</label><input id="rBnc" type="number" value="0" />
             <div id="rBncHint" class="hint" style="display: none"></div>
             <label for="rDivIR">Dividendes imposables au barème (après abattement 40 %) €</label><input id="rDivIR" type="number" value="0" />
+            <div class="hint">Laissez 0 si vous ne percevez ni BNC transparents ni dividendes au barème.</div>
+          </div>
 
+          <div>
+            <h3>Options & déductions</h3>
+            <label for="chargesDeduct">Charges déductibles du revenu global (PER, etc.) €</label
+            ><input id="chargesDeduct" type="number" value="0" />
             <div class="hint">
-              Le <b>RNI</b> est la base <b>imposable</b> du foyer. Le <b>Net foyer</b> = encaissements (selon mode choisi) − IR. Ils diffèrent car le
-              <b>Net</b> est une logique <b>cash</b> (incluant PFU/PS éventuels), alors que le <b>RNI</b> suit la logique <b>fiscale</b>.
+              Le <b>RNI</b> est la base <b>imposable</b> du foyer. Le <b>Net foyer</b> = encaissements (déclarants actifs) − IR. Ils diffèrent car le
+              <b>Net</b> est une logique <b>cash</b>, alors que le <b>RNI</b> suit la logique <b>fiscale</b>.
             </div>
-          </div>
-
-          <div>
-            <h3>Conjoint(e) micro-BNC</h3>
-            <label for="caSpouse">CA annuel (année 1) €</label><input id="caSpouse" type="number" value="36000" />
-            <label for="growth">Croissance annuelle conjoint (%)</label><input id="growth" type="number" value="5" />
-            <label for="spouseActivity">Type activité conjoint(e)</label
-            ><select id="spouseActivity">
-              <option value="bnc" selected>Prof. libérales non régl. (BNC)–26,1 %</option>
-
-              <option value="service">Prestations BIC–21,2 %</option>
-
-              <option value="cipav">Prof. libérales CIPAV–23,2 %</option>
-
-              <option value="commerce">Commerce–12,3 %</option></select
-            ><label><input type="checkbox" id="spouseACRE" /> ACRE année 1</label>
-            <div id="spouseBaseHint" class="muted" style="font-size: 12px">Base imposable conjointe ≈ 66 % × (CA mensuel × 12).</div>
-          </div>
-        </div>
-
-        <div class="row" style="margin-top: 8px">
-          <div>
-            <label for="deductCsg">Déduire CSG 6,8 % (TNS) de l'assiette IR ?</label>
-            <select id="deductCsg">
-              <option value="1" selected>Oui</option>
-
-              <option value="0">Non</option>
-            </select>
-            <div id="deductCsgHint" class="hint"></div>
-          </div>
-
-          <div>
-            <label for="cashOpts">Encaissements à considérer pour le net</label>
-            <select id="cashOpts">
-              <option value="you_plus_spouse">Vous + Conjoint(e)</option>
-
-              <option value="you_only">Vous seul</option>
-            </select>
-
-            <div class="hint">Synchronisé automatiquement sur le <b>mode principal</b>.</div>
           </div>
         </div>
 
@@ -860,7 +838,7 @@
           </table>
         </div>
 
-        <div class="console" id="consoleIR"></div>
+        <!-- <div class="console" id="consoleIR"></div> -->
       </section>
 
       <section class="card span-12">
@@ -868,6 +846,15 @@
 
         <div class="muted" style="margin-bottom: 16px">
           Barème IR indexé par votre inflation, PASS et SMIC évolutifs, revenus et paramètres de chaque mode actualisés chaque année.
+        </div>
+
+        <div class="card-tabs" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px">
+          <div class="tabs">
+            <button type="button" id="projTabFoyer" class="tab active">Foyer</button>
+            <button type="button" id="projTabD1" class="tab">Déclarant 1</button>
+            <button type="button" id="projTabD2" class="tab disabled">Déclarant 2</button>
+          </div>
+          <div class="muted">Choisissez la vue : foyer agrégé, ou un déclarant seul.</div>
         </div>
 
         <div style="text-align: left; margin-bottom: 20px">

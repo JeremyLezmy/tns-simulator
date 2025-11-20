@@ -3,3 +3,4 @@
 .stage-row td{background:rgba(110,231,255,.05);font-weight:600}
 .cat-row td{font-weight:700;background:var(--soft);border-top:2px solid var(--border)}
 .disabled-input{opacity:.6}
+.btn.disabled{opacity:.5;pointer-events:none}

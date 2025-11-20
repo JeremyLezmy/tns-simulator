@@ -36,6 +36,8 @@ export function handleSasuIrCalculation(triggerProjection = false) {
 
   // Update state
   appState.sasuIr = result;
+  const dec = appState.declarants[appState.activeDeclarant];
+  if (dec) dec.computed.sasuIr = { ...result };
 
   // Update UI
   updateSasuIrUI(result);

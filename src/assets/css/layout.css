@@ -15,6 +15,13 @@ header.container {
   margin-top: 16px;
   width: 100%;
 }
+.card-tabs {
+  margin: 0 -16px 16px;
+  padding: 0 16px;
+}
+.card-tabs .tabs {
+  width: fit-content;
+}
 .span-4 {
   grid-column: span 4;
 }

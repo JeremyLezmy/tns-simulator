@@ -151,6 +151,7 @@ function setupEventListeners() {
   irInputs.forEach((id) => {
     document.getElementById(id)?.addEventListener("input", () => handleIrCalculation(true));
   });
+  document.getElementById("deductCsg")?.addEventListener("change", () => handleIrCalculation(true));
   document.getElementById("syncSource")?.addEventListener("change", syncIrInputs);
   document.getElementById("cashOpts")?.addEventListener("change", () => handleIrCalculation(true));
   document.getElementById("spouseActivity")?.addEventListener("change", () => handleIrCalculation(true));

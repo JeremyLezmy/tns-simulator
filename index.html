@@ -742,6 +742,7 @@
             <h3>Vos revenus à l'IR</h3>
             <label id="lblRSal" for="rSal">Salaires imposables (après -10 %) €</label><input id="rSal" type="number" value="0" />
             <label for="rBnc">BNC/Bénéfices transparents €</label><input id="rBnc" type="number" value="0" />
+            <div id="rBncHint" class="hint" style="display: none"></div>
             <label for="rDivIR">Dividendes imposables au barème (après abattement 40 %) €</label><input id="rDivIR" type="number" value="0" />
 
             <div class="hint">
@@ -776,6 +777,7 @@
 
               <option value="0">Non</option>
             </select>
+            <div id="deductCsgHint" class="hint"></div>
           </div>
 
           <div>

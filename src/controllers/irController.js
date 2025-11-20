@@ -64,19 +64,71 @@ function computeSpouseCashAndBase(isFirstYear = true) {
   return { spouseCash, baseSpouse };
 }
 
+function updateDeductCsgControl(mode) {
+  const select = document.getElementById("deductCsg");
+  const hint = document.getElementById("deductCsgHint");
+  if (!select || !hint) return;
+
+  const wasDisabled = select.disabled;
+
+  if (mode === "tns") {
+    select.disabled = false;
+    if (wasDisabled && select.dataset.lastTnsValue) {
+      select.value = select.dataset.lastTnsValue;
+    }
+    delete select.dataset.lastTnsValue;
+    hint.textContent = "Option TNS uniquement : réduit la base IR de 6,8 % de la CSG lorsque \"Oui\" est sélectionné.";
+    return;
+  }
+
+  if (!select.disabled) {
+    select.dataset.lastTnsValue = select.value;
+  }
+  select.value = "0";
+  select.disabled = true;
+  hint.textContent = "Grisé hors mode TNS : la CSG déductible n'est pas applicable et est forcée à \"Non\".";
+}
+
+function updateMainBncHint(mode) {
+  const hintEl = document.getElementById("rBncHint");
+  if (!hintEl) return;
+
+  if (mode !== "micro") {
+    hintEl.textContent = "";
+    hintEl.style.display = "none";
+    return;
+  }
+
+  const abatement = getAbatementRate(appState.micro.activity);
+  const abatementPct = (abatement * 100).toFixed(0);
+  const taxablePct = ((1 - abatement) * 100).toFixed(0);
+  const ca = appState.micro.ca || 0;
+  const baseImposable = Number.isFinite(appState.micro.baseImposable) ? appState.micro.baseImposable : ca * (1 - abatement);
+  const abatementAmount = ca * abatement;
+
+  hintEl.style.display = "block";
+  hintEl.textContent = `Micro : abattement ${abatementPct} % → base imposable ${taxablePct} % du CA (CA ${fmtEUR(
+    ca
+  )} – abattement ${fmtEUR(abatementAmount)} = ${fmtEUR(baseImposable)}).`;
+}
+
 export function handleIrCalculation(triggerProjection = false) {
   const rSal = val("rSal");
   const rBnc = val("rBnc");
   const rDivIR = val("rDivIR");
   const parts = val("parts");
-  const dedCsg = document.getElementById("deductCsg").value === "1" && appState.tns.A > 0 ? 0.068 * appState.tns.A : 0;
+  const mode = document.getElementById("modeSel").value;
+  updateDeductCsgControl(mode);
+  const dedCsg =
+    document.getElementById("deductCsg").value === "1" && mode === "tns" && appState.tns.A > 0 ? 0.068 * appState.tns.A : 0;
+
+  updateMainBncHint(mode);
 
   const { spouseCash, baseSpouse } = computeSpouseCashAndBase();
 
   const { RNI, totalIR, tmi, irResult } = calculateHouseholdIr(rSal, rBnc, rDivIR, baseSpouse, dedCsg, parts, 0);
 
   let encaissementsFoyer = spouseCash;
-  const mode = document.getElementById("modeSel").value;
   switch (mode) {
     case "tns":
       encaissementsFoyer += appState.tns.R;

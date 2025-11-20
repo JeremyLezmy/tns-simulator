@@ -18,7 +18,7 @@ function updateSasuIrUI(result) {
 
   const items = [
     ["Salaire brut", result.salaire],
-    ["Salaire imposable (-10%)", result.salImp],
+    ["Salaire imposable", result.salImp],
     ["Quote-part BNC", result.bnc],
     ["PS sur quote-part", result.psDue],
   ];

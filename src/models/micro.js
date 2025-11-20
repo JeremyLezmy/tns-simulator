@@ -49,6 +49,19 @@ export function getMicroRates(activity) {
 }
 
 // FONCTION HELPER RESTAURÉE
+export function getAbatementRate(activity) {
+  switch (activity) {
+    case "commerce":
+      return 0.71;
+    case "service": // BIC Prestations de services
+      return 0.5;
+    case "bnc":
+    case "cipav":
+    default:
+      return 0.34;
+  }
+}
+
 export function getSocialWeights(activity) {
   return MICRO_SOCIAL_WEIGHTS_BY_ACTIVITY[activity] || MICRO_SOCIAL_WEIGHTS_BY_ACTIVITY.service;
 }
@@ -60,7 +73,8 @@ export function calculateMicro(ca, activity, acreOn) {
 
   const cotisations = ca * totalRate;
   const remuneration = ca - cotisations;
-  const baseImposable = ca * (1 - 0.34);
+  const abatement = getAbatementRate(activity);
+  const baseImposable = ca * (1 - abatement);
 
   return {
     cotisations,

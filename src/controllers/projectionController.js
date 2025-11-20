@@ -10,7 +10,7 @@ import { appState } from "../state.js";
 import { solveForR } from "../models/tns.js";
 import { calculateSasuIr } from "../models/sasuIR.js";
 import { calculateSasuIs, minSalaryFor4Quarters } from "../models/sasuIS.js";
-import { calculateMicro, getMicroRates, MICRO_THRESHOLDS } from "../models/micro.js";
+import { calculateMicro, getMicroRates, MICRO_THRESHOLDS, getAbatementRate } from "../models/micro.js";
 import { decomposeSalariatContributions } from "../models/salarie.js";
 import { calculateHouseholdIr } from "../models/ir.js";
 import { handleIrCalculation } from "./irController.js";
@@ -34,9 +34,11 @@ function getSpouseDataForYear(yearIndex) {
   const socialRate = acreOn ? base / 2 : base;
   const totalRate = socialRate + cfp;
 
+  const abatement = getAbatementRate(activity);
+
   return {
     spouseCash: caSpouse - caSpouse * totalRate,
-    baseSpouse: caSpouse * (1 - 0.34),
+    baseSpouse: caSpouse * (1 - abatement),
   };
 }
 // ===================================================================================

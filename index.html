@@ -740,7 +740,7 @@
         <div class="row">
           <div>
             <h3>Vos revenus à l'IR</h3>
-            <label for="rSal">Salaires imposables (après -10 %) €</label><input id="rSal" type="number" value="0" />
+            <label id="lblRSal" for="rSal">Salaires imposables (après -10 %) €</label><input id="rSal" type="number" value="0" />
             <label for="rBnc">BNC/Bénéfices transparents €</label><input id="rBnc" type="number" value="0" />
             <label for="rDivIR">Dividendes imposables au barème (après abattement 40 %) €</label><input id="rDivIR" type="number" value="0" />
 
@@ -764,7 +764,7 @@
 
               <option value="commerce">Commerce–12,3 %</option></select
             ><label><input type="checkbox" id="spouseACRE" /> ACRE année 1</label>
-            <div class="muted" style="font-size: 12px">Base imposable conjointe ≈ 66 % × (CA mensuel × 12).</div>
+            <div id="spouseBaseHint" class="muted" style="font-size: 12px">Base imposable conjointe ≈ 66 % × (CA mensuel × 12).</div>
           </div>
         </div>
 

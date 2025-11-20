@@ -96,7 +96,7 @@ export function decomposeSasuPresidentContributions(brutTotal) {
   // Pour le président de SASU, on retire les charges liées au chômage
   delete deco.breakdown["Assurance chômage"];
   delete deco.breakdown["AGS"];
-  delete deco.breakdown["APEC"];
+  // APEC et Prévoyance cadres sont maintenus (assimilé salarié cadre)
 
   // On recalcule les totaux après suppression
   deco.totalSalarie = Object.values(deco.breakdown).reduce((sum, p) => sum + p.salarie, 0);

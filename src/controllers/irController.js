@@ -8,7 +8,7 @@ import { fmtEUR, fmtPct } from "../utils/format.js";
 import { calculateHouseholdIr } from "../models/ir.js";
 import { appState } from "../state.js";
 import { handleProjection } from "./projectionController.js";
-import { getMicroRates } from "../models/micro.js";
+import { getMicroRates, getAbatementRate } from "../models/micro.js";
 
 function updateIrUI(RNI, totalIR, tmi, irResult, netFoyer) {
   safeSetText("rniFoyer", fmtEUR(RNI));
@@ -51,7 +51,15 @@ function computeSpouseCashAndBase(isFirstYear = true) {
 
   const cotisations = caSpouse * totalRate;
   const spouseCash = caSpouse - cotisations;
-  const baseSpouse = caSpouse * (1 - 0.34); // 34% abatement
+  const abatement = getAbatementRate(activity);
+  const baseSpouse = caSpouse * (1 - abatement);
+
+  // Update hint text
+  const hintEl = document.getElementById("spouseBaseHint");
+  if (hintEl) {
+    const pct = ((1 - abatement) * 100).toFixed(0);
+    hintEl.textContent = `Base imposable conjointe = ${pct} % × CA annuel (abattement ${(abatement * 100).toFixed(0)} %).`;
+  }
 
   return { spouseCash, baseSpouse };
 }
@@ -119,7 +127,7 @@ export function syncIrInputs() {
       rSal = appState.tns.R * 0.9;
       break;
     case "sasuIR":
-      rSal = appState.sasuIr.salaire * 0.9;
+      rSal = appState.sasuIr.salaire; // Pas d'abattement 10%
       rBnc = appState.sasuIr.bnc;
       break;
     case "sasuIS":
@@ -132,6 +140,16 @@ export function syncIrInputs() {
     case "salarie":
       rSal = appState.salarie.brutTotal * 0.9;
       break;
+  }
+
+  // Update label based on mode
+  const lbl = document.getElementById("lblRSal");
+  if (lbl) {
+    if (mode === "sasuIR") {
+      lbl.textContent = "Salaires imposables (pas d'abattement 10%) €";
+    } else {
+      lbl.textContent = "Salaires imposables (après -10 %) €";
+    }
   }
 
   document.getElementById("rSal").value = Math.round(rSal);

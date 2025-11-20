@@ -5,7 +5,7 @@
  */
 
 export function calculateSasuIr(salaire, bnc, psRate) {
-  const salImp = 0.9 * salaire;
+  const salImp = salaire; // Pas d'abattement 10% en SASU IR (imposition directe)
   const psDue = psRate * bnc;
   const rni = salImp + bnc;
 

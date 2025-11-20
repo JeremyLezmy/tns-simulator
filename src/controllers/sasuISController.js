@@ -176,6 +176,10 @@ export function handleSisuCalculation(triggerProjection = false) {
     divMode: document.getElementById("divMode").value,
     encaissements: result.encaissements,
   };
+  const dec = appState.declarants[appState.activeDeclarant];
+  if (dec) {
+    dec.computed.sasuIs = { ...appState.sasuIs, totalTaxes: result.totalTaxes };
+  }
 
   // Update UI
   updateSisuUI(result);

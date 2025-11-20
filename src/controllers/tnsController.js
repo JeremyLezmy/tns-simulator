@@ -66,6 +66,11 @@ export function handleTnsCalculation(triggerProjection = false) {
   appState.tns.cotisations = cot;
   appState.tns.dispo = dispo;
 
+  const dec = appState.declarants[appState.activeDeclarant];
+  if (dec) {
+    dec.computed.tns = { ...appState.tns };
+  }
+
   // Update UI
   updateTnsUI(dispo, R, cot, ca);
 

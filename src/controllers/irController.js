@@ -8,15 +8,16 @@ import { fmtEUR, fmtPct } from "../utils/format.js";
 import { calculateHouseholdIr } from "../models/ir.js";
 import { appState } from "../state.js";
 import { handleProjection } from "./projectionController.js";
-import { getMicroRates, getAbatementRate } from "../models/micro.js";
+import { getAbatementRate } from "../models/micro.js";
 
-function updateIrUI(RNI, totalIR, tmi, irResult, netFoyer) {
+function updateIrUI(RNI, totalIR, tmi, irResult, netFoyer, netAvantIr) {
   safeSetText("rniFoyer", fmtEUR(RNI));
   safeSetText("irOut", fmtEUR(totalIR));
   safeSetText("tmiOut", fmtPct(tmi));
   safeSetText("netFoyer", fmtEUR(netFoyer));
+  safeSetText("netAvantIrFoyer", fmtEUR(netAvantIr));
 
-  const parts = val("parts");
+  const parts = appState.household.parts || val("parts");
   const rows = irResult.slices
     .map(
       (s, idx) => `
@@ -37,33 +38,6 @@ function updateIrUI(RNI, totalIR, tmi, irResult, netFoyer) {
   safeSetText("sumTaxFoyer", fmtEUR(totalIR));
 }
 
-function computeSpouseCashAndBase(isFirstYear = true) {
-  if (document.getElementById("cashOpts").value !== "you_plus_spouse") {
-    return { spouseCash: 0, baseSpouse: 0 };
-  }
-  const caSpouse = val("caSpouse");
-  const activity = document.getElementById("spouseActivity").value;
-  const acreOn = isFirstYear && document.getElementById("spouseACRE").checked;
-
-  const { base, cfp } = getMicroRates(activity);
-  const socialRate = acreOn ? base / 2 : base;
-  const totalRate = socialRate + cfp;
-
-  const cotisations = caSpouse * totalRate;
-  const spouseCash = caSpouse - cotisations;
-  const abatement = getAbatementRate(activity);
-  const baseSpouse = caSpouse * (1 - abatement);
-
-  // Update hint text
-  const hintEl = document.getElementById("spouseBaseHint");
-  if (hintEl) {
-    const pct = ((1 - abatement) * 100).toFixed(0);
-    hintEl.textContent = `Base imposable conjointe = ${pct} % × CA annuel (abattement ${(abatement * 100).toFixed(0)} %).`;
-  }
-
-  return { spouseCash, baseSpouse };
-}
-
 function updateDeductCsgControl(mode) {
   const select = document.getElementById("deductCsg");
   const hint = document.getElementById("deductCsgHint");
@@ -77,7 +51,7 @@ function updateDeductCsgControl(mode) {
       select.value = select.dataset.lastTnsValue;
     }
     delete select.dataset.lastTnsValue;
-    hint.textContent = "Option TNS uniquement : réduit la base IR de 6,8 % de la CSG lorsque \"Oui\" est sélectionné.";
+    hint.textContent = "Option TNS (EURL/EI) : la part déductible de la CSG (6,8 %) est soustraite de votre revenu imposable.";
     return;
   }
 
@@ -113,39 +87,82 @@ function updateMainBncHint(mode) {
 }
 
 export function handleIrCalculation(triggerProjection = false) {
-  const rSal = val("rSal");
-  const rBnc = val("rBnc");
-  const rDivIR = val("rDivIR");
-  const parts = val("parts");
+  // Met à jour l'IR saisi du déclarant actif
+  const activeKey = appState.activeDeclarant || "d1";
+  const activeDec = appState.declarants[activeKey];
+  if (activeDec) {
+    activeDec.inputs.ir = {
+      rSal: val("rSal"),
+      rBnc: val("rBnc"),
+      rDivIR: val("rDivIR"),
+      chargesDeduct: val("chargesDeduct"),
+    };
+  }
+
+  const parts = appState.household.parts || val("parts");
   const mode = document.getElementById("modeSel").value;
   updateDeductCsgControl(mode);
-  const dedCsg =
-    document.getElementById("deductCsg").value === "1" && mode === "tns" && appState.tns.A > 0 ? 0.068 * appState.tns.A : 0;
 
   updateMainBncHint(mode);
 
-  const { spouseCash, baseSpouse } = computeSpouseCashAndBase();
+  const decList = appState.household.status === "single" ? ["d1"] : ["d1", "d2"];
+  let rSalTot = 0,
+    rBncTot = 0,
+    rDivTot = 0,
+    dedTotal = 0,
+    encaissementsFoyer = 0;
 
-  const { RNI, totalIR, tmi, irResult } = calculateHouseholdIr(rSal, rBnc, rDivIR, baseSpouse, dedCsg, parts, 0);
+  decList.forEach((key) => {
+    const dec = appState.declarants[key];
+    if (!dec) return;
+    const inputs = dec.inputs?.ir || {};
+    const modeInputs = dec.inputs?.[dec.mode] || {};
+    const rSal = Number(inputs.rSal) || 0;
+    const rBnc = Number(inputs.rBnc) || 0;
+    const rDivIR = Number(inputs.rDivIR) || 0;
+    const chargesDeduct = Number(inputs.chargesDeduct) || 0;
 
-  let encaissementsFoyer = spouseCash;
-  switch (mode) {
-    case "tns":
-      encaissementsFoyer += appState.tns.R;
-      break;
-    case "sasuIR":
-      encaissementsFoyer += appState.sasuIr.encaissements;
-      break;
-    case "sasuIS":
-      encaissementsFoyer += appState.sasuIs.encaissements;
-      break;
-    case "micro":
-      encaissementsFoyer += appState.micro.remuneration;
-      break;
-    case "salarie":
-      encaissementsFoyer += appState.salarie.netAvantIR;
-      break;
-  }
+    rSalTot += rSal;
+    rBncTot += rBnc;
+    rDivTot += rDivIR;
+
+    // Fix: Pour le déclarant actif, on prend la valeur en direct du DOM si on est en mode TNS
+    let dedCsgFlag = "0";
+    if (dec.mode === "tns") {
+      if (key === activeKey) {
+         dedCsgFlag = document.getElementById("deductCsg")?.value || "0";
+      } else {
+         dedCsgFlag = modeInputs.deductCsg ?? inputs.deductCsg ?? "0";
+      }
+    }
+    
+    const dedCsg = dedCsgFlag === "1" && dec.computed?.tns?.A > 0 ? 0.068 * dec.computed.tns.A : 0;
+    dedTotal += dedCsg + chargesDeduct;
+
+    switch (dec.mode) {
+      case "tns":
+        encaissementsFoyer += dec.computed?.tns?.R || 0;
+        break;
+      case "sasuIR":
+        encaissementsFoyer += dec.computed?.sasuIr?.encaissements || 0;
+        break;
+      case "sasuIS":
+        encaissementsFoyer += dec.computed?.sasuIs?.encaissements || 0;
+        break;
+      case "micro":
+        encaissementsFoyer += dec.computed?.micro?.remuneration || 0;
+        break;
+      case "salarie":
+        encaissementsFoyer += dec.computed?.salarie?.netAvantIR || 0;
+        break;
+      default:
+        break;
+    }
+
+    encaissementsFoyer -= chargesDeduct;
+  });
+
+  const { RNI, totalIR, tmi, irResult } = calculateHouseholdIr(rSalTot, rBncTot, rDivTot, 0, dedTotal, parts, 0);
 
   const netFoyer = encaissementsFoyer - totalIR;
 
@@ -153,7 +170,7 @@ export function handleIrCalculation(triggerProjection = false) {
   appState.ir = { RNI, IR: totalIR, net: netFoyer, tmi };
 
   // Update UI
-  updateIrUI(RNI, totalIR, tmi, irResult, netFoyer);
+  updateIrUI(RNI, totalIR, tmi, irResult, netFoyer, encaissementsFoyer);
 
   logIR(`IR Calc: RNI=${RNI.toFixed(0)}, IR=${totalIR.toFixed(0)}, Net=${netFoyer.toFixed(0)}`);
 
@@ -163,12 +180,6 @@ export function handleIrCalculation(triggerProjection = false) {
 }
 
 export function syncIrInputs() {
-  const syncSrc = document.getElementById("syncSource").value;
-  if (syncSrc === "manual") {
-    handleIrCalculation(true);
-    return;
-  }
-
   const mode = document.getElementById("modeSel").value;
   let rSal = 0,
     rBnc = 0,
@@ -207,6 +218,15 @@ export function syncIrInputs() {
   document.getElementById("rSal").value = Math.round(rSal);
   document.getElementById("rBnc").value = Math.round(rBnc);
   document.getElementById("rDivIR").value = Math.round(rDivIR);
+  const dec = appState.declarants[appState.activeDeclarant];
+  if (dec?.inputs?.ir) {
+    const charges = Number(dec.inputs.ir.chargesDeduct) || 0;
+    document.getElementById("chargesDeduct").value = Math.round(charges);
+  }
+  const tnsInputs = dec?.inputs?.tns;
+  if (tnsInputs && typeof tnsInputs.deductCsg !== "undefined") {
+    document.getElementById("deductCsg").value = tnsInputs.deductCsg;
+  }
 
   // LA CORRECTION EST ICI :
   // On recalcule l'IR mais on ne redéclenche PAS la projection depuis ici.

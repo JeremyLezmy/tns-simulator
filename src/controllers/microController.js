@@ -83,6 +83,10 @@ export function handleMicroCalculation(triggerProjection = false) {
   const result = calculateMicro(ca, activity, acreOn);
 
   appState.micro = { ...appState.micro, ...result, ca, activity, acreOn };
+  const dec = appState.declarants[appState.activeDeclarant];
+  if (dec) {
+    dec.computed.micro = { ...result, ca, activity, acreOn };
+  }
   updateMicroUI(result, ca, activity, acreOn);
 
   log(`Micro Calc: CA=${ca}, Activité=${activity}`);

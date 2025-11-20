@@ -43,6 +43,7 @@ const MODE_INPUTS = {
 const IR_INPUTS = ["rSal", "rBnc", "rDivIR", "chargesDeduct"];
 const PROJECTION_SCOPES = ["foyer", "d1", "d2"];
 function initHelpPopups() {
+  // 1. Process raw .hint elements (auto-wrap)
   const hints = document.querySelectorAll(".hint");
   hints.forEach((hint, idx) => {
     if (hint.dataset.enhanced === "1") return;
@@ -63,6 +64,19 @@ function initHelpPopups() {
     parent.insertBefore(container, hint);
     container.appendChild(btn);
     container.appendChild(hint);
+  });
+
+  // 2. Process manual .help-container elements (link icon to bubble)
+  document.querySelectorAll(".help-container").forEach((container, idx) => {
+    const icon = container.querySelector(".help-icon");
+    const bubble = container.querySelector(".help-bubble");
+    if (icon && bubble) {
+      if (!icon.dataset.target) {
+        const targetId = bubble.id || `help-manual-${idx}`;
+        bubble.id = targetId;
+        icon.dataset.target = targetId;
+      }
+    }
   });
 
   document.addEventListener("click", (e) => {

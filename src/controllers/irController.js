@@ -10,11 +10,12 @@ import { appState } from "../state.js";
 import { handleProjection } from "./projectionController.js";
 import { getAbatementRate } from "../models/micro.js";
 
-function updateIrUI(RNI, totalIR, tmi, irResult, netFoyer) {
+function updateIrUI(RNI, totalIR, tmi, irResult, netFoyer, netAvantIr) {
   safeSetText("rniFoyer", fmtEUR(RNI));
   safeSetText("irOut", fmtEUR(totalIR));
   safeSetText("tmiOut", fmtPct(tmi));
   safeSetText("netFoyer", fmtEUR(netFoyer));
+  safeSetText("netAvantIrFoyer", fmtEUR(netAvantIr));
 
   const parts = appState.household.parts || val("parts");
   const rows = irResult.slices
@@ -50,7 +51,7 @@ function updateDeductCsgControl(mode) {
       select.value = select.dataset.lastTnsValue;
     }
     delete select.dataset.lastTnsValue;
-    hint.textContent = "Option TNS uniquement : réduit la base IR de 6,8 % de la CSG lorsque \"Oui\" est sélectionné.";
+    hint.textContent = "Option TNS (EURL/EI) : la part déductible de la CSG (6,8 %) est soustraite de votre revenu imposable.";
     return;
   }
 
@@ -125,10 +126,16 @@ export function handleIrCalculation(triggerProjection = false) {
     rBncTot += rBnc;
     rDivTot += rDivIR;
 
-    const dedCsgFlag =
-      dec.mode === "tns"
-        ? modeInputs.deductCsg ?? inputs.deductCsg
-        : "0";
+    // Fix: Pour le déclarant actif, on prend la valeur en direct du DOM si on est en mode TNS
+    let dedCsgFlag = "0";
+    if (dec.mode === "tns") {
+      if (key === activeKey) {
+         dedCsgFlag = document.getElementById("deductCsg")?.value || "0";
+      } else {
+         dedCsgFlag = modeInputs.deductCsg ?? inputs.deductCsg ?? "0";
+      }
+    }
+    
     const dedCsg = dedCsgFlag === "1" && dec.computed?.tns?.A > 0 ? 0.068 * dec.computed.tns.A : 0;
     dedTotal += dedCsg + chargesDeduct;
 
@@ -163,7 +170,7 @@ export function handleIrCalculation(triggerProjection = false) {
   appState.ir = { RNI, IR: totalIR, net: netFoyer, tmi };
 
   // Update UI
-  updateIrUI(RNI, totalIR, tmi, irResult, netFoyer);
+  updateIrUI(RNI, totalIR, tmi, irResult, netFoyer, encaissementsFoyer);
 
   logIR(`IR Calc: RNI=${RNI.toFixed(0)}, IR=${totalIR.toFixed(0)}, Net=${netFoyer.toFixed(0)}`);
 

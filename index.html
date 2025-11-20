@@ -120,7 +120,17 @@
 
         <div class="row">
           <div>
-            <label>CSG incluse dans neutralisation IS ?</label>
+            <label>
+              Inclure CSG/CRDS dans les charges ?
+              <div class="help-container">
+                <div class="help-icon">?</div>
+                <div class="help-bubble">
+                  Si "Oui", la CSG/CRDS est considérée comme une charge professionnelle et déduite du résultat (diminuant le RNI).<br>
+                  Si "Non", elle est payée personnellement (augmentant le RNI).<br>
+                  En général, pour une société à l'IS, c'est "Oui".
+                </div>
+              </div>
+            </label>
             <select id="includeCsg">
               <option value="1" selected>Oui</option>
 
@@ -129,7 +139,15 @@
           </div>
 
           <div>
-            <label for="deductCsg">Déduire CSG 6,8 % (TNS) de l'assiette IR ? <span id="deductCsgHint" class="hint"></span></label>
+            <label>
+              Déduire CSG (6.8%) du revenu imposable ?
+              <div class="help-container">
+                <div class="help-icon" data-target="deductCsgHint">?</div>
+                <div class="help-bubble" id="deductCsgHint">
+                  <!-- Will be populated by JS -->
+                </div>
+              </div>
+            </label>
             <select id="deductCsg">
               <option value="1" selected>Oui</option>
 
@@ -270,17 +288,8 @@
             <div class="label">PS sur quote-part</div>
 
             <div class="value" id="sasuPs">–</div>
-
-            <div id="sasuPsRateText" class="muted" style="font-size: 12px">–</div>
-          </div>
-
-          <div class="box">
-            <div class="label">Revenu imposable (sal + BNC)</div>
-
-            <div class="value" id="sasuRni">–</div>
           </div>
         </div>
-
         <h3 style="margin-top: 12px">Détail SASU (IR & encaissements)</h3>
 
         <div class="table-wrapper">
@@ -327,8 +336,6 @@
           <div><label for="smicGrow">Croissance SMIC (% / an)</label><input id="smicGrow" type="number" value="2" /></div>
         </div>
 
-        <div class="row">
-          <div>
         <div class="row">
           <div>
             <label for="sisuSalaryMode">Salaire <span class="hint">ℹ️ Le <b>brut annuel minimal</b> pour <b>4 trimestres</b> = <b>600 × SMIC horaire</b>. Voir Notes.</span></label>
@@ -808,6 +815,15 @@
           </table>
         </div>
 
+        <!-- New KPI for Net Avant Impots -->
+        <div class="kpi" style="margin-top: 16px; justify-content: flex-start; gap: 24px; ">
+          <div class="kpi-item" style="background: var(--soft); padding: 10px 16px; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 2px 8px var(--shadow);">
+            <div class="label" style="color: var(--accent); font-weight: 600;">Revenus Net avant Impôts</div>
+            <div class="value" id="netAvantIrFoyer" style="font-size: 24px; color: var(--text);">0 €</div>
+            <div class="sub" id="netAvantIrFoyerSub"></div>
+          </div>
+        </div>
+
         <!-- <div class="console" id="consoleIR"></div> -->
       </section>
 
@@ -818,13 +834,13 @@
           Barème IR indexé par votre inflation, PASS et SMIC évolutifs, revenus et paramètres de chaque mode actualisés chaque année.
         </div>
 
-        <div class="card-tabs" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px">
+        <div class="card-tabs">
           <div class="tabs">
             <button type="button" id="projTabFoyer" class="tab active">Foyer</button>
             <button type="button" id="projTabD1" class="tab">Déclarant 1</button>
             <button type="button" id="projTabD2" class="tab disabled">Déclarant 2</button>
           </div>
-          <div class="muted">Choisissez la vue : foyer agrégé, ou un déclarant seul.</div>
+          <div class="muted" style="margin-top: 8px; font-size: 12px;">Choisissez la vue : foyer agrégé, ou un déclarant seul.</div>
         </div>
 
         <div style="text-align: left; margin-bottom: 20px">

@@ -234,7 +234,7 @@ function calculateDeclarantProjection(dec, yearIndex, commonParams, state, isAct
 function buildProjHeader(mode, scope, showWarning) {
   let headers = [];
   if (scope === "foyer") {
-    headers = ["Année", "PASS", "RNI foyer", "IR", "Net foyer mens.", "Net foyer"];
+    headers = ["Année", "PASS", "RNI foyer", "Net av. IR", "IR", "Net foyer mens.", "Net foyer"];
     if (showWarning) headers.push("Warning micro");
   } else
     switch (mode) {
@@ -295,6 +295,8 @@ function buildSummaryFooter(sums, mode) {
   let cells = "";
   if (mode === "foyer") {
     cells = `<td>Total / Moyenne</td><td class="num">–</td><td class="num">${fmtEUR(sums.rni)}</td><td class="num">${fmtEUR(
+      sums.netAvantIr
+    )}</td><td class="num">${fmtEUR(
       sums.ir
     )}</td><td></td><td class="num">${fmtEUR(sums.net)}</td>${sums.warning ? "<td></td>" : ""}`;
   } else
@@ -455,7 +457,7 @@ export function handleProjection() {
     let rowClass = resBase.warningClass || resOther.warningClass || "";
 
     if (scope === "foyer") {
-      rowData = [commonParams.year, commonParams.pass, totalRNI, totalIR, netFoyer / 12, netFoyer];
+      rowData = [commonParams.year, commonParams.pass, totalRNI, totalEnc, totalIR, netFoyer / 12, netFoyer];
       if (microPresent) {
         const w1 = resBase.warning && resBase.warning !== "✅ OK" ? `[${baseKey.toUpperCase()}] ${resBase.warning}` : "";
         const w2 = resOther.warning && resOther.warning !== "✅ OK" ? `[${baseKey === "d1" ? "D2" : "D1"}] ${resOther.warning}` : "";
@@ -463,6 +465,7 @@ export function handleProjection() {
         rowData.push(combinedW || "✅ OK");
       }
       sums.rni += totalRNI;
+      sums.netAvantIr += totalEnc;
       sums.ir += totalIR;
       sums.net += netFoyer;
     } else {

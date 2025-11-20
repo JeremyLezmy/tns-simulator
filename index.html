@@ -309,7 +309,12 @@
         </div>
         <h3 style="margin-top: 12px">Détail SASU (IR & encaissements)</h3>
 
-        <div class="table-wrapper">
+        <div style="display: flex; gap: 8px; margin-bottom: 8px">
+          <button type="button" class="btn btn-secondary active" id="btnViewSasuIRDetail" onclick="toggleSasuIRView('detail')">Détail</button>
+          <button type="button" class="btn btn-secondary" id="btnViewSasuIRVisual" onclick="toggleSasuIRView('visual')">Visuels</button>
+        </div>
+
+        <div id="sasuIRDetailWrapper" class="table-wrapper">
           <table>
             <thead>
               <tr>
@@ -329,6 +334,17 @@
               </tr>
             </tfoot>
           </table>
+        </div>
+
+        <div id="sasuIRVisualWrapper" style="display: none;">
+          <div class="charts-container">
+            <div class="chart-wrapper">
+              <canvas id="chartSasuIR1"></canvas>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="chartSasuIR2"></canvas>
+            </div>
+          </div>
         </div>
       </section>
 

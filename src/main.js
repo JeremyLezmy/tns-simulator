@@ -487,6 +487,9 @@ window.toggleSasuIRView = function(view) {
     visualWrapper.style.display = "block";
     btnDetail.classList.remove("active");
     btnVisual.classList.add("active");
+    
+    // Trigger recalculation to replay animation
+    document.getElementById("calcSasuIrBtn")?.click();
   } else {
     detailWrapper.style.display = "block";
     visualWrapper.style.display = "none";

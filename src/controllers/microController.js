@@ -9,6 +9,7 @@ import { calculateMicro, MICRO_THRESHOLDS, getSocialWeights, getMicroRates } fro
 import { appState } from "../state.js";
 import { syncIrInputs } from "./irController.js";
 import { handleProjection } from "./projectionController.js";
+import { updateCharts } from "../ui/charts.js";
 
 function updateMicroUI(result, ca, activity, acreOn) {
   // KPIs
@@ -73,6 +74,12 @@ function updateMicroUI(result, ca, activity, acreOn) {
   document.getElementById("tblMicro").innerHTML = rows;
   safeSetText("sumMicroPct", `${(result.totalRate * 100).toFixed(2).replace(".", ",")} %`);
   safeSetText("sumMicroTot", fmtEUR(result.cotisations));
+
+  // Update Chart
+  updateCharts("micro", {
+    net: result.remuneration,
+    cotis: result.cotisations,
+  });
 }
 
 export function handleMicroCalculation(triggerProjection = false) {

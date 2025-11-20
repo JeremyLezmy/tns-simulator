@@ -9,6 +9,7 @@ import { calculateSasuIr } from "../models/sasuIR.js";
 import { appState } from "../state.js";
 import { syncIrInputs } from "./irController.js";
 import { handleProjection } from "./projectionController.js";
+import { updateCharts } from "../ui/charts.js";
 
 function updateSasuIrUI(result) {
   safeSetText("sasuSalaireImp", fmtEUR(result.salImp));
@@ -25,6 +26,13 @@ function updateSasuIrUI(result) {
   const rows = items.map(([label, value]) => `<tr><td>${label}</td><td class="num">${fmtEUR(value)}</td></tr>`).join("");
   document.getElementById("tblSasu").innerHTML = rows;
   safeSetText("sumSasuEnc", fmtEUR(result.encaissements));
+
+  // Update Chart
+  updateCharts("sasuIR", {
+    salaireNet: result.salaire,
+    bncNet: result.bnc - result.psDue,
+    charges: result.psDue,
+  });
 }
 
 export function handleSasuIrCalculation(triggerProjection = false) {

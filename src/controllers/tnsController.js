@@ -9,6 +9,7 @@ import { solveForR } from "../models/tns.js";
 import { appState } from "../state.js";
 import { syncIrInputs } from "./irController.js";
 import { handleProjection } from "./projectionController.js";
+import { updateCharts } from "../ui/charts.js";
 
 function updateTnsUI(dispo, R, cot, ca) {
   // KPIs
@@ -47,6 +48,13 @@ function updateTnsUI(dispo, R, cot, ca) {
   safeSetText("sumCsgPct", R > 0 ? fmtPct(cot.csg / R) : "–");
   safeSetText("sumTot", fmtEUR(cot.total));
   safeSetText("sumTotPct", R > 0 ? fmtPct(cot.total / R) : "–");
+
+  // Update Chart
+  updateCharts("tns", {
+    net: R,
+    cotis: cot.cotSansCSG,
+    csg: cot.csg,
+  });
 }
 
 export function handleTnsCalculation(triggerProjection = false) {

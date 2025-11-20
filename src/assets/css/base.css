@@ -154,6 +154,12 @@ button.btn {
 button.btn-secondary {
   background: var(--panel);
   color: var(--text);
+  transition: all 0.2s ease;
+}
+button.btn-secondary.active {
+  background: var(--soft);
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 0 3px rgba(120, 255, 214, 0.15);
 }
 .btn-reset.subtle {
   background: var(--reset-bg);
@@ -330,6 +336,65 @@ select:disabled {
 .subtle-link:hover {
   color: var(--accent);
   border-bottom-color: var(--accent);
+}
+
+/* ============================================
+   CHART VISUALIZATIONS
+   ============================================ */
+
+.charts-container {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+  margin-top: 16px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (min-width: 840px) {
+  .charts-container {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.chart-wrapper {
+  background: var(--panel);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  min-height: 300px;
+  max-height: 450px;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow: visible; /* Allow legend to overflow if needed */
+  width: 100%;
+  position: relative;
+}
+
+:root[data-theme="dark"] .chart-wrapper {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.chart-wrapper canvas {
+  max-height: 350px;
+  max-width: 100%;
+  height: auto !important;
+  width: auto !important;
+}
+
+/* Mobile: single column, no horizontal scroll */
+@media (max-width: 839px) {
+  .charts-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  .chart-wrapper {
+    width: 100%;
+    min-width: unset;
+  }
 }
 
 /* ======================================= */

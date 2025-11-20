@@ -9,6 +9,7 @@ import { decomposeSalariatContributions } from "../models/salarie.js";
 import { appState } from "../state.js";
 import { syncIrInputs } from "./irController.js";
 import { handleProjection } from "./projectionController.js";
+import { updateCharts } from "../ui/charts.js";
 
 export function getSalaireAnnuel() {
   const mode = document.getElementById("salaireMode").value;
@@ -93,6 +94,13 @@ function updateSalarieUI(brutTotal, deco) {
   safeSetText("total-sal-mt", fmtEUR(deco.totalSalarie));
   safeSetText("total-emp-pct", `${(effRatePat * 100).toFixed(1)} %`);
   safeSetText("total-emp-mt", fmtEUR(deco.totalEmployeur));
+
+  // Update Chart
+  updateCharts("salarie", {
+    net: netAvantIR,
+    chargesSal: deco.totalSalarie,
+    chargesPat: deco.totalEmployeur,
+  });
 }
 
 export function handleSalarieCalculation(triggerProjection = false) {

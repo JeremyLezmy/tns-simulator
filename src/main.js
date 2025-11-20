@@ -18,6 +18,7 @@ import { handleSalarieCalculation, resetSalarie, updateSalaireHelper } from "./c
 import { handleIrCalculation, syncIrInputs } from "./controllers/irController.js";
 import { handleProjection } from "./controllers/projectionController.js";
 import { appState } from "./state.js";
+import { updateCharts } from "./ui/charts.js";
 
 const MODE_INPUTS = {
   tns: ["ca", "caGrow", "chargesPct", "chargesFixes", "includeCsg", "deductCsg"],
@@ -447,3 +448,90 @@ document.addEventListener("DOMContentLoaded", () => {
   // Run initial calculations
   updateAllCalculations();
 });
+
+// Expose toggle function for TNS charts
+window.toggleTnsView = function(view) {
+  console.log('[toggleTnsView] Called with view:', view);
+  const detailWrapper = document.getElementById("tnsDetailWrapper");
+  const visualWrapper = document.getElementById("tnsVisualWrapper");
+  const btnDetail = document.getElementById("btnViewTnsDetail");
+  const btnVisual = document.getElementById("btnViewTnsVisual");
+
+  if (view === "visual") {
+    detailWrapper.style.display = "none";
+    visualWrapper.style.display = "block";
+    btnDetail.classList.remove("active");
+    btnVisual.classList.add("active");
+    
+    // Trigger recalculation to replay animation (same as theme change)
+    console.log('[Toggle] Triggering TNS recalculation');
+    document.getElementById("calcTnsBtn")?.click();
+  } else {
+    detailWrapper.style.display = "block";
+    visualWrapper.style.display = "none";
+    btnDetail.classList.add("active");
+    btnVisual.classList.remove("active");
+  }
+};
+
+
+
+window.toggleSasuIRView = function(view) {
+  const detailWrapper = document.getElementById("sasuIRDetailWrapper");
+  const visualWrapper = document.getElementById("sasuIRVisualWrapper");
+  const btnDetail = document.getElementById("btnViewSasuIRDetail");
+  const btnVisual = document.getElementById("btnViewSasuIRVisual");
+
+  if (view === "visual") {
+    detailWrapper.style.display = "none";
+    visualWrapper.style.display = "block";
+    btnDetail.classList.remove("active");
+    btnVisual.classList.add("active");
+  } else {
+    detailWrapper.style.display = "block";
+    visualWrapper.style.display = "none";
+    btnDetail.classList.add("active");
+    btnVisual.classList.remove("active");
+  }
+};
+
+window.toggleSisuView = toggleSisuView;
+
+window.toggleMicroView = function(view) {
+  const detailWrapper = document.getElementById("microDetailWrapper");
+  const visualWrapper = document.getElementById("microVisualWrapper");
+  const btnDetail = document.getElementById("btnViewMicroDetail");
+  const btnVisual = document.getElementById("btnViewMicroVisual");
+
+  if (view === "visual") {
+    detailWrapper.style.display = "none";
+    visualWrapper.style.display = "block";
+    btnDetail.classList.remove("active");
+    btnVisual.classList.add("active");
+  } else {
+    detailWrapper.style.display = "block";
+    visualWrapper.style.display = "none";
+    btnDetail.classList.add("active");
+    btnVisual.classList.remove("active");
+  }
+};
+
+window.toggleSalarieView = function(view) {
+  const detailWrapper = document.getElementById("salarieDetailWrapper");
+  const visualWrapper = document.getElementById("salarieVisualWrapper");
+  const btnDetail = document.getElementById("btnViewSalarieDetail");
+  const btnVisual = document.getElementById("btnViewSalarieVisual");
+
+  if (view === "visual") {
+    detailWrapper.style.display = "none";
+    visualWrapper.style.display = "block";
+    btnDetail.classList.remove("active");
+    btnVisual.classList.add("active");
+  } else {
+    detailWrapper.style.display = "block";
+    visualWrapper.style.display = "none";
+    btnDetail.classList.add("active");
+    btnVisual.classList.remove("active");
+  }
+};
+

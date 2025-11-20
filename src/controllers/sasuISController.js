@@ -9,22 +9,36 @@ import { calculateSasuIs, minSalaryFor4Quarters } from "../models/sasuIS.js";
 import { appState } from "../state.js";
 import { syncIrInputs } from "./irController.js";
 import { handleProjection } from "./projectionController.js";
+import { updateCharts } from "../ui/charts.js";
 
 export function toggleSisuView(view) {
   const g = document.getElementById("tblSISUWrapper");
   const d = document.getElementById("tblSISUChargesWrapper");
+  const v = document.getElementById("sisuVisualWrapper");
   const bg = document.getElementById("btnViewGlobal");
   const bd = document.getElementById("btnViewCharges");
+  const bv = document.getElementById("btnViewVisual");
 
+  // Hide all
+  g.style.display = "none";
+  d.style.display = "none";
+  if (v) v.style.display = "none";
+  
+  // Remove all active states
+  bg.classList.remove("active");
+  bd.classList.remove("active");
+  if (bv) bv.classList.remove("active");
+
+  // Show selected view
   if (view === "charges") {
-    g.style.display = "none";
     d.style.display = "block";
-    bg.classList.remove("active");
     bd.classList.add("active");
+  } else if (view === "visual" && v) {
+    v.style.display = "block";
+    if (bv) bv.classList.add("active");
   } else {
+    // Default to global
     g.style.display = "block";
-    d.style.display = "none";
-    bd.classList.remove("active");
     bg.classList.add("active");
   }
 }
@@ -147,6 +161,15 @@ function updateSisuUI(result) {
   safeSetText("sisuCharges-sal-mt", fmtEUR(deco.totalSalarie));
   safeSetText("sisuCharges-emp-pct", `${(effRatePat * 100).toFixed(1).replace(".", ",")} %`);
   safeSetText("sisuCharges-emp-mt", fmtEUR(deco.totalEmployeur));
+
+  // Update Chart
+  const chargesExtVal = (val("sisuCA") * val("sisuChargesPct")) / 100 + val("sisuChargesFix");
+  updateCharts("sasuIS", {
+    chargesExt: chargesExtVal,
+    chargesSoc: deco.totalEmployeur + deco.totalSalarie + (result.psDiv || 0),
+    is: result.isTotal,
+    net: result.netSal + result.divNet,
+  });
 }
 
 export function handleSisuCalculation(triggerProjection = false) {

@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="src/assets/css/components/topbar.css" />
     <link rel="stylesheet" href="src/assets/css/components/cards.css" />
     <link rel="stylesheet" href="src/assets/css/components/tables.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   </head>
 
   <body>
@@ -201,7 +202,12 @@
 
         <h3 style="margin-top: 12px">Détail cotisations <span class="hint">Les taux TNS utilisés sont des <b>taux effectifs</b> et plafonnés par le PASS ; ajustez si vos régimes diffèrent.</span></h3>
 
-        <div class="table-wrapper">
+        <div style="display: flex; gap: 8px; margin-bottom: 8px">
+          <button type="button" class="btn btn-secondary active" id="btnViewTnsDetail" onclick="toggleTnsView('detail')">Détail</button>
+          <button type="button" class="btn btn-secondary" id="btnViewTnsVisual" onclick="toggleTnsView('visual')">Visuels</button>
+        </div>
+
+        <div id="tnsDetailWrapper" class="table-wrapper">
           <table>
             <thead>
               <tr>
@@ -241,6 +247,17 @@
               </tr>
             </tfoot>
           </table>
+        </div>
+
+        <div id="tnsVisualWrapper" style="display: none;">
+          <div class="charts-container">
+            <div class="chart-wrapper">
+              <canvas id="chartTns1"></canvas>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="chartTns2"></canvas>
+            </div>
+          </div>
         </div>
 
         <!-- <div class="console" id="console"></div> -->
@@ -423,7 +440,7 @@
           </div>
         </div>
 
-        <h3 style="margin-top: 12px">Détail SASUIS</h3>
+        <h3 style="margin-top: 12px">Détail SASU à l'IS</h3>
 
         <div style="display: flex; gap: 8px; margin-bottom: 8px">
           <button type="button" class="btn btn-secondary active" id="btnViewGlobal">Vue synthèse</button>

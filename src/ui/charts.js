@@ -1307,4 +1307,53 @@ export function updateCharts(mode, data, forceRecreate = false) {
     default:
       console.warn(`Unknown chart mode: ${mode}`);
   }
+  
+  // Initialize pagination for mobile slider
+  setTimeout(setupChartPagination, 100);
+}
+
+function setupChartPagination() {
+  const containers = document.querySelectorAll('.charts-container');
+  
+  containers.forEach(container => {
+    // Only process visible containers to avoid layout issues
+    if (container.offsetParent === null) return;
+    
+    // Check if pagination already exists
+    let pagination = container.nextElementSibling;
+    if (!pagination || !pagination.classList.contains('chart-pagination')) {
+      pagination = document.createElement('div');
+      pagination.className = 'chart-pagination';
+      container.parentNode.insertBefore(pagination, container.nextSibling);
+    }
+    
+    // Clear existing dots
+    pagination.innerHTML = '';
+    
+    const charts = container.querySelectorAll('.chart-wrapper');
+    if (charts.length <= 1) return; // No pagination needed for 1 or 0 charts
+    
+    // Create dots
+    charts.forEach((_, index) => {
+      const dot = document.createElement('div');
+      dot.className = `chart-dot ${index === 0 ? 'active' : ''}`;
+      dot.onclick = () => {
+        charts[index].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      };
+      pagination.appendChild(dot);
+    });
+    
+    // Update active dot on scroll
+    container.onscroll = () => {
+      const scrollLeft = container.scrollLeft;
+      const width = container.offsetWidth;
+      const index = Math.round(scrollLeft / width);
+      
+      const dots = pagination.querySelectorAll('.chart-dot');
+      dots.forEach((dot, i) => {
+        if (i === index) dot.classList.add('active');
+        else dot.classList.remove('active');
+      });
+    };
+  });
 }

@@ -12,6 +12,10 @@
     <link rel="stylesheet" href="src/assets/css/components/cards.css" />
     <link rel="stylesheet" href="src/assets/css/components/tables.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sankey"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-treemap"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
   </head>
 
   <body>
@@ -257,6 +261,20 @@
             <div class="chart-wrapper">
               <canvas id="chartTns2"></canvas>
             </div>
+            <div class="chart-wrapper">
+              <canvas id="chartTns3"></canvas>
+              <div class="chart-hint-overlay">
+                <div class="help-container" style="position: absolute; top: 10px; right: 10px;">
+                  <div class="help-icon">?</div>
+                  <div class="help-bubble" style="right: 0; left: auto; width: 250px;">
+                    <strong>Regroupements :</strong><br>
+                    • Retraite = Base + Complémentaire (RCI)<br>
+                    • Santé = Maladie + Indemnités Journalières<br>
+                    • Prévoyance = Invalidité / Décès
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -459,8 +477,9 @@
         <h3 style="margin-top: 12px">Détail SASU à l'IS</h3>
 
         <div style="display: flex; gap: 8px; margin-bottom: 8px">
-          <button type="button" class="btn btn-secondary active" id="btnViewGlobal">Vue synthèse</button>
-          <button type="button" class="btn btn-secondary" id="btnViewCharges">Détail charges rémunération dirigeant</button>
+          <button type="button" class="btn btn-secondary active" id="btnViewGlobal" onclick="toggleSisuView('global')">Vue synthèse</button>
+          <button type="button" class="btn btn-secondary" id="btnViewCharges" onclick="toggleSisuView('charges')">Détail charges rémunération dirigeant</button>
+          <button type="button" class="btn btn-secondary" id="btnViewVisual" onclick="toggleSisuView('visual')">Visuels</button>
         </div>
 
         <div class="table-wrapper" id="tblSISUWrapper">
@@ -522,6 +541,23 @@
             </tfoot>
           </table>
         </div>
+
+        <div id="sisuVisualWrapper" style="display: none;">
+          <div class="charts-container">
+            <div class="chart-wrapper">
+              <canvas id="chartSasuIS1"></canvas>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="chartSasuIS2"></canvas>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="chartSasuIS3"></canvas>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="chartSasuIS4"></canvas>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section class="card span-12" id="blocMICRO" style="display: none">
@@ -540,7 +576,7 @@
             <select id="microActivity">
               <option value="service">Prestations commerciales / artisanales (BIC)– 21,2 %</option>
 
-              <option value="bnc" selected>Prof. libérales nonréglementées(BNC)–26,1 %</option>
+              <option value="bnc" selected>Prof. libérales non réglementées(BNC)–26,1 %</option>
 
               <option value="cipav">Prof. libérales réglementées (CIPAV)–23,2 %</option>
 
@@ -584,7 +620,12 @@
 
         <h3>Détail des cotisations</h3>
 
-        <div class="table-wrapper">
+        <div style="display: flex; gap: 8px; margin-bottom: 8px">
+          <button type="button" class="btn btn-secondary active" id="btnViewMicroDetail" onclick="toggleMicroView('detail')">Détail</button>
+          <button type="button" class="btn btn-secondary" id="btnViewMicroVisual" onclick="toggleMicroView('visual')">Visuels</button>
+        </div>
+
+        <div id="microDetailWrapper" class="table-wrapper">
           <table>
             <thead>
               <tr>
@@ -608,6 +649,17 @@
               </tr>
             </tfoot>
           </table>
+        </div>
+
+        <div id="microVisualWrapper" style="display: none;">
+          <div class="charts-container">
+            <div class="chart-wrapper">
+              <canvas id="chartMicro1"></canvas>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="chartMicro2"></canvas>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -703,56 +755,53 @@
 
         <h3>Détail des cotisations (salarié / employeur)</h3>
 
-        <div class="table-wrapper">
+        <div style="display: flex; gap: 8px; margin-bottom: 8px">
+          <button type="button" class="btn btn-secondary active" id="btnViewSalarieDetail" onclick="toggleSalarieView('detail')">Détail</button>
+          <button type="button" class="btn btn-secondary" id="btnViewSalarieVisual" onclick="toggleSalarieView('visual')">Visuels</button>
+        </div>
+
+        <div id="salarieDetailWrapper" class="table-wrapper">
           <table id="tblSalariatDetail" class="detail-cotisations">
-            <colgroup>
-              <col style="width: 38%" />
-
-              <col style="width: 12%" />
-
+            <col style="width: 13%" />
               <col style="width: 10%" />
-
-              <col style="width: 13%" />
-
-              <col style="width: 10%" />
-
               <col style="width: 13%" />
             </colgroup>
-
             <thead>
               <tr>
                 <th>Poste</th>
-
                 <th class="num">Base</th>
-
                 <th class="num">Tauxch. salariales (%)</th>
-
                 <th class="num">Montantch. salariales (€)</th>
-
                 <th class="num">Tauxch. patronales (%)</th>
-
                 <th class="num">Montant ch.patronales (€)</th>
               </tr>
             </thead>
-
             <tbody></tbody>
-
             <tfoot>
               <tr class="summary">
                 <td>Total</td>
-
                 <td class="num" id="total-base">Brut</td>
-
                 <td class="num" id="total-sal-pct">–</td>
-
                 <td class="num" id="total-sal-mt">–</td>
-
                 <td class="num" id="total-emp-pct">–</td>
-
                 <td class="num" id="total-emp-mt">–</td>
               </tr>
             </tfoot>
           </table>
+        </div>
+
+        <div id="salarieVisualWrapper" style="display: none;">
+          <div class="charts-container">
+            <div class="chart-wrapper">
+              <canvas id="chartSalarie1"></canvas>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="chartSalarie2"></canvas>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="chartSalarie3"></canvas>
+            </div>
+          </div>
         </div>
       </section>
 

@@ -36,6 +36,9 @@ export function toggleSisuView(view) {
   } else if (view === "visual" && v) {
     v.style.display = "block";
     if (bv) bv.classList.add("active");
+    
+    // Trigger recalculation to replay animation
+    document.getElementById("calcSisuBtn")?.click();
   } else {
     // Default to global
     g.style.display = "block";
@@ -164,11 +167,27 @@ function updateSisuUI(result) {
 
   // Update Chart
   const chargesExtVal = (val("sisuCA") * val("sisuChargesPct")) / 100 + val("sisuChargesFix");
+  const smic = val("smicHour");
+  const min4Q = minSalaryFor4Quarters(smic);
+  
   updateCharts("sasuIS", {
     chargesExt: chargesExtVal,
     chargesSoc: deco.totalEmployeur + deco.totalSalarie + (result.psDiv || 0),
     is: result.isTotal,
     net: result.netSal + result.divNet,
+    // Extended data for advanced charts
+    superBrut: result.costEmployeur,
+    divBrut: result.divBrut,
+    remNet: result.netSal,
+    divNet: result.divNet,
+    charges: deco.totalEmployeur + deco.totalSalarie,
+    psDiv: result.psDiv || 0,
+    flatTax: result.divBrut - result.divNet, // Assuming Flat Tax or IR+PS
+    details: deco.details, // Detailed social charges
+    marge: result.resAvantImp + result.costEmployeur, // Approx Marge Dispo (Resultat + Salaire Chargé)
+    ca: val("sisuCA"),
+    salBrut: result.salBrut, // For 4-quarter validation
+    min4QThreshold: min4Q, // 4-quarter threshold
   });
 }
 

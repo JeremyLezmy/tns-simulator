@@ -95,11 +95,52 @@ function updateSalarieUI(brutTotal, deco) {
   safeSetText("total-emp-pct", `${(effRatePat * 100).toFixed(1)} %`);
   safeSetText("total-emp-mt", fmtEUR(deco.totalEmployeur));
 
+  // Calculate breakdown by risk category for charts
+  const breakdown = deco.breakdown || {};
+  
+  // Retraite (pension)
+  const retraiteSal = (breakdown["Assurance vieillesse déplaf."]?.salarie || 0) +
+                       (breakdown["Assurance vieillesse plaf."]?.salarie || 0) +
+                       (breakdown["Retraite compl. Tr. 1"]?.salarie || 0) +
+                       (breakdown["Retraite compl. Tr. 2"]?.salarie || 0);
+                      
+  const retraitePat = (breakdown["Assurance vieillesse déplaf."]?.employeur || 0) +
+                       (breakdown["Assurance vieillesse plaf."]?.employeur || 0) +
+                       (breakdown["Retraite compl. Tr. 1"]?.employeur || 0) +
+                       (breakdown["Retraite compl. Tr. 2"]?.employeur || 0) +
+                       (breakdown["CEG Tr. 1"]?.employeur || 0) +
+                       (breakdown["CEG Tr. 2"]?.employeur || 0) +
+                       (breakdown["CET (> PASS)"]?.employeur || 0) +
+                       (breakdown["Prévoyance cadres"]?.employeur || 0);
+  
+  // Santé & Famille
+  const santeSal = (breakdown["Assurance maladie"]?.salarie || 0) +
+                    (breakdown["CSG imposable"]?.salarie || 0) +
+                    (breakdown["CSG non-imposable"]?.salarie || 0) +
+                    (breakdown["CRDS"]?.salarie || 0);
+                    
+  const santePat = (breakdown["Assurance maladie"]?.employeur || 0) +
+                    (breakdown["Allocations familiales"]?.employeur || 0);
+  
+  // Chômage (unemployment)
+  const chomageSal = 0; // Employee doesn't contribute directly to unemployment
+  const chomagePat = (breakdown["Assurance chômage"]?.employeur || 0) +
+                      (breakdown["AGS"]?.employeur || 0);
+
   // Update Chart
   updateCharts("salarie", {
+    superBrut,
+    brutTotal,
     net: netAvantIR,
     chargesSal: deco.totalSalarie,
     chargesPat: deco.totalEmployeur,
+    // Breakdown by risk
+    retraiteSal,
+    retraitePat,
+    santeSal,
+    santePat,
+    chomageSal,
+    chomagePat
   });
 }
 

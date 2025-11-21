@@ -11,7 +11,7 @@ import { syncIrInputs } from "./irController.js";
 import { handleProjection } from "./projectionController.js";
 import { updateCharts } from "../ui/charts.js";
 
-function updateTnsUI(dispo, R, cot, ca) {
+function updateTnsUI(dispo, R, cot, ca, includeCsg) {
   // KPIs
   safeSetText("margeOut", fmtEUR(dispo));
   safeSetText("Rout", fmtEUR(R));
@@ -54,6 +54,10 @@ function updateTnsUI(dispo, R, cot, ca) {
     net: R,
     cotis: cot.cotSansCSG,
     csg: cot.csg,
+    details: cot,
+    ca: ca,
+    dispo: dispo,
+    includeCsg: includeCsg,
   });
 }
 
@@ -80,7 +84,7 @@ export function handleTnsCalculation(triggerProjection = false) {
   }
 
   // Update UI
-  updateTnsUI(dispo, R, cot, ca);
+  updateTnsUI(dispo, R, cot, ca, includeCsg);
 
   log(`TNS Calc: CA=${ca}, R=${R.toFixed(0)}`);
 

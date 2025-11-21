@@ -29,9 +29,10 @@ function updateSasuIrUI(result) {
 
   // Update Chart
   updateCharts("sasuIR", {
-    salaireNet: result.salaire,
+    salaireBrut: result.salaire,
+    bncBrut: result.bnc,
     bncNet: result.bnc - result.psDue,
-    charges: result.psDue,
+    psAmount: result.psDue,
   });
 }
 

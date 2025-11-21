@@ -4,6 +4,7 @@
  * Manages the application's color theme.
  */
 import { getItem, setItem } from "../utils/storage.js";
+import { val } from "../utils/dom.js";
 import { updateCharts } from "./charts.js";
 import { appState } from "../state.js";
 
@@ -43,7 +44,11 @@ function refreshVisibleCharts() {
     return (d && d.R !== undefined) ? {
       net: d.R,
       cotis: d.cotisations?.cotSansCSG || 0,
-      csg: d.cotisations?.csg || 0
+      csg: d.cotisations?.csg || 0,
+      details: d.cotisations,
+      ca: val("ca"), 
+      dispo: d.dispo,
+      includeCsg: document.getElementById("includeCsg")?.value === "1"
     } : null;
   });
 

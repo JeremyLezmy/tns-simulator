@@ -31,7 +31,7 @@ function getChartColors() {
       text: "#e5e7eb",
       grid: "#374151",
       gridLight: "#1f2937",
-      background: "rgba(17, 24, 39, 0.5)",
+      background: "rgba(17, 24, 39, 0.95)",
     };
   } else {
     return {
@@ -53,7 +53,7 @@ function getChartColors() {
       text: "#374151",
       grid: "#d1d5db",
       gridLight: "#f3f4f6",
-      background: "rgba(255, 255, 255, 0.8)",
+      background: "rgba(255, 255, 255, 0.95)",
     };
   }
 }
@@ -95,6 +95,15 @@ function getCommonOptions(colors, title) {
         padding: 12,
         cornerRadius: 8,
         displayColors: true,
+        callbacks: {
+          label: function(context) {
+            let label = context.dataset.label || '';
+            if (context.parsed.y !== null) {
+                label += ': ' + context.parsed.y.toLocaleString("fr-FR") + ' €';
+            }
+            return label;
+          }
+        }
       },
     },
   };
@@ -103,9 +112,9 @@ function getCommonOptions(colors, title) {
 // Destroy specific charts to force recreation
 function destroyCharts(mode) {
   const chartIds = {
-    tns: ["chartTns1", "chartTns2"],
+    tns: ["chartTns1", "chartTns2", "chartTns3"],
     sasuIR: ["chartSasuIR1", "chartSasuIR2"],
-    sasuIS: ["chartSasuIS1", "chartSasuIS2"],
+    sasuIS: ["chartSasuIS1", "chartSasuIS2", "chartSasuIS3", "chartSasuIS4"],
     micro: ["chartMicro1", "chartMicro2"],
     salarie: ["chartSalarie1", "chartSalarie2"],
   };
@@ -124,129 +133,286 @@ function createOrUpdateChart(canvasId, config, forceRecreate = false) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return null;
 
-  console.log(`[Chart] ${canvasId} - forceRecreate:`, forceRecreate, 'exists:', !!chartInstances[canvasId]);
-
-  // If force recreate or chart exists, destroy it first
-  if (chartInstances[canvasId] && forceRecreate) {
-    console.log(`[Chart] ${canvasId} - DESTROYING for recreation`);
-    chartInstances[canvasId].destroy();
+  // Check if Chart.js has an existing chart on this canvas (using Chart.js internal registry)
+  const existingChart = Chart.getChart(canvas);
+  
+  // If there's an existing chart and we're forcing recreation, destroy it
+  if (existingChart && forceRecreate) {
+    existingChart.destroy();
     delete chartInstances[canvasId];
   }
-  
-  // If chart still exists (not forced to recreate), just update
-  if (chartInstances[canvasId]) {
-    console.log(`[Chart] ${canvasId} - UPDATING existing chart`);
-    const chart = chartInstances[canvasId];
-    chart.data = config.data;
-    chart.options = config.options;
-    chart.update();
-    return chart;
+  // If there's an existing chart but we're not forcing recreation, update it
+  else if (existingChart && !forceRecreate) {
+    existingChart.data = config.data;
+    existingChart.options = config.options;
+    existingChart.update();
+    chartInstances[canvasId] = existingChart; // Ensure our tracker is in sync
+    return existingChart;
+  }
+  // If there's an existing chart in Chart.js but not in our tracker, destroy it
+  else if (existingChart) {
+    existingChart.destroy();
+    delete chartInstances[canvasId];
   }
 
-  // Create new chart (either first time or after destroy)
-  console.log(`[Chart] ${canvasId} - CREATING new chart`);
+  // Create new chart (first time or after destroy)
   const ctx = canvas.getContext("2d");
-  chartInstances[canvasId] = new Chart(ctx, config);
+  const newChart = new Chart(ctx, config);
+  chartInstances[canvasId] = newChart;
   
-  return chartInstances[canvasId];
+  return newChart;
 }
 
 // ========== TNS CHARTS ==========
 
 function getTnsChart1Config(data) {
   const colors = getChartColors();
+  // SANKEY: CA -> Charges Ext -> Marge -> Net / Cotisations
   
+  const includeCsg = data.includeCsg !== false; // Default to true if undefined
+  
+  let net = Math.round(data.net);
+  const cotis = Math.round(data.cotis);
+  const csg = Math.round(data.csg);
+  
+  // If CSG is NOT included in company charges (paid by TNS), 
+  // 'net' (R) includes the CSG amount.
+  // For the visual, we want to show CSG as a charge (social flow), 
+  // so we extract it from the displayed Net.
+  if (!includeCsg) {
+    net = net - csg;
+  }
+  
+  const social = cotis + csg;
+  const marge = net + social;
+  
+  // Calculate CA and Charges Ext
+  // To ensure the Sankey node "Marge Disponible" is perfectly balanced (Input = Output),
+  // we MUST define Marge size as exactly (Net + Social).
+  // Then we back-calculate Charges Ext based on CA.
+  
+  let ca = data.ca ? Math.round(data.ca) : Math.round(marge * 1.1);
+  
+  // Force Marge to be exactly what flows out of it
+  let dispo = marge; 
+  
+  // Calculate Charges Ext as the remainder of CA
+  let chargesExt = Math.round(ca - dispo);
+  
+  // Safety: if chargesExt < 0 (e.g. CA < Net+Charges due to input error), clamp to 0
+  // and adjust CA to match Marge (so flow is valid)
+  if (chargesExt < 0) {
+    chargesExt = 0;
+    ca = dispo;
+  }
+  
+  // Build flows
+  const flows = [];
+  
+  // Only add Charges Ext branch if > 0
+  if (chargesExt > 0) {
+    flows.push({ from: "Chiffre d'Affaires", to: "Charges Externes", flow: chargesExt });
+    flows.push({ from: "Chiffre d'Affaires", to: "Marge Disponible", flow: dispo });
+  } else {
+    // If no charges, we still want a flow from CA to Marge to show the full amount
+    flows.push({ from: "Chiffre d'Affaires", to: "Marge Disponible", flow: dispo });
+  }
+  
+  flows.push({ from: "Marge Disponible", to: "Rémunération Nette", flow: net });
+  flows.push({ from: "Marge Disponible", to: "Cotisations Sociales", flow: social });
+
   return {
-    type: "doughnut",
+    type: "sankey",
     data: {
-      labels: ["Revenus nets (R)", "Cotisations sociales", "CSG/CRDS"],
       datasets: [{
-        data: [data.net, data.cotis, data.csg],
-        backgroundColor: [colors.net, colors.social, colors.expense],
+        label: "Flux Financier",
+        data: flows,
+        colorFrom: (c) => c.dataset.data[c.dataIndex].from === "Chiffre d'Affaires" ? colors.text : colors.revenue,
+        colorTo: (c) => {
+          const to = c.dataset.data[c.dataIndex].to;
+          if (to === "Charges Externes") return colors.external;
+          if (to === "Marge Disponible") return colors.revenue;
+          if (to === "Rémunération Nette") return colors.net;
+          if (to === "Cotisations Sociales") return colors.social;
+          return colors.grid;
+        },
+        colorMode: 'gradient',
+        size: 'max',
         borderWidth: 0,
-        hoverOffset: 8,
-      }],
+        nodeWidth: 20
+      }]
     },
     options: {
-      ...getCommonOptions(colors, "Répartition du revenu"),
-      cutout: "65%",
+      ...getCommonOptions(colors, "Flux Financier (Sankey)"),
       plugins: {
-        ...getCommonOptions(colors, "Répartition du revenu").plugins,
+        ...getCommonOptions(colors, "Flux Financier (Sankey)").plugins,
         tooltip: {
-          ...getCommonOptions(colors, "Répartition du revenu").plugins.tooltip,
           callbacks: {
-            label: function(context) {
-              const label = context.label || "";
-              const value = context.parsed || 0;
-              const total = context.dataset.data.reduce((a, b) => a + b, 0);
-              const percentage = ((value / total) * 100).toFixed(1);
-              return `${label}: ${value.toLocaleString("fr-FR")} € (${percentage}%)`;
-            },
-          },
-        },
-      },
-    },
+            label: (ctx) => `${ctx.raw.from} → ${ctx.raw.to}: ${Math.round(ctx.raw.flow).toLocaleString("fr-FR")} €`
+          }
+        }
+      }
+    }
   };
 }
 
 function getTnsChart2Config(data) {
   const colors = getChartColors();
-  const total = data.net + data.cotis + data.csg;
-  const tauxCotis = ((data.cotis / data.net) * 100).toFixed(1);
-  const tauxCsg = ((data.csg / data.net) * 100).toFixed(1);
-  const tauxTotal = ((data.cotis + data.csg) / data.net * 100).toFixed(1);
+  // WATERFALL: Marge -> Retraite -> Santé/CSG -> Net
+  
+  const includeCsg = data.includeCsg !== false;
+  
+  let net = Math.round(data.net);
+  const cotis = Math.round(data.cotis);
+  const csg = Math.round(data.csg);
+  
+  // Same logic as Sankey: if CSG not included, extract it from Net for visual consistency
+  if (!includeCsg) {
+    net = net - csg;
+  }
+  
+  const marge = net + cotis + csg;
+  const details = data.details || {};
+  
+  // Calculate waterfall steps (floating bars)
+  const step1_end = marge;
+  const step2_start = step1_end - cotis;
+  const step3_start = step2_start - csg;
   
   return {
     type: "bar",
     data: {
-      labels: ["Taux de charges"],
-      datasets: [
-        {
-          label: `Cotisations (${tauxCotis}%)`,
-          data: [data.cotis],
-          backgroundColor: colors.social,
-        },
-        {
-          label: `CSG/CRDS (${tauxCsg}%)`,
-          data: [data.csg],
-          backgroundColor: colors.expense,
-        },
-      ],
+      labels: ["Marge Disponible", "Cotisations", "CSG/CRDS", "Revenu Net"],
+      datasets: [{
+        data: [
+          [0, marge],              // Marge (base)
+          [step2_start, step1_end], // Cotisations (drop)
+          [step3_start, step2_start], // CSG (drop)
+          [0, net]                  // Net (final)
+        ],
+        backgroundColor: [
+          colors.revenue,
+          colors.social,
+          colors.expense,
+          colors.net
+        ],
+      }]
     },
     options: {
-      ...getCommonOptions(colors, "Taux de prélèvements sociaux"),
-      indexAxis: "y",
-      scales: {
-        x: {
-          stacked: false,
-          ticks: {
-            color: colors.text,
-            callback: function(value) {
-              return value.toLocaleString("fr-FR") + " €";
-            },
-          },
-          grid: { color: colors.gridLight, drawTicks: false },
-        },
-        y: {
-          stacked: false,
-          ticks: { color: colors.text },
-          grid: { display: false },
-        },
-      },
+      ...getCommonOptions(colors, "Flux de Revenu (Waterfall)"),
       plugins: {
-        ...getCommonOptions(colors, `Taux de prélèvements sociaux (${tauxTotal}% sur R)`).plugins,
+        ...getCommonOptions(colors, "Flux de Revenu (Waterfall)").plugins,
+        legend: {
+          display: false
+        },
         tooltip: {
-          ...getCommonOptions(colors, "Taux de prélèvements sociaux").plugins.tooltip,
           callbacks: {
             label: function(context) {
-              const label = context.dataset.label || "";
-              const value = context.parsed.x || 0;
-              return `${label}: ${value.toLocaleString("fr-FR")} €`;
-            },
-          },
+              const raw = context.raw;
+              let value = 0;
+              if (Array.isArray(raw)) {
+                value = raw[1] - raw[0];
+              } else {
+                value = raw;
+              }
+              return `${context.label}: ${Math.round(value).toLocaleString("fr-FR")} €`;
+            }
+          }
         },
-      },
+        datalabels: {
+          display: true,
+          color: 'white',
+          font: { weight: 'bold' },
+          formatter: (value) => {
+            let val = 0;
+            if (Array.isArray(value)) {
+               val = value[1] - value[0];
+            } else {
+               val = value;
+            }
+            if (Math.abs(val) < 1000) return "";
+            return Math.round(val/1000) + " k€";
+          },
+          anchor: 'center',
+          align: 'center',
+        }
+      }
     },
+    plugins: [ChartDataLabels]
+  };
+}
+
+function getTnsChart3Config(data) {
+  const colors = getChartColors();
+  // TREEMAP: Breakdown of 24k cotisations
+  
+  const details = data.details || {};
+  const treeData = [];
+  
+  if (Object.keys(details).length > 0) {
+    if (details.retBase || details.rci) treeData.push({ category: "Retraite", value: Math.round((details.retBase||0) + (details.rci||0)) });
+    if (details.csg) treeData.push({ category: "CSG/CRDS", value: Math.round(details.csg) });
+    if (details.maladie || details.ij) treeData.push({ category: "Santé", value: Math.round((details.maladie||0) + (details.ij||0)) });
+    if (details.id) treeData.push({ category: "Prévoyance", value: Math.round(details.id) });
+    if (details.af) treeData.push({ category: "Alloc. Fam.", value: Math.round(details.af) });
+    if (details.cfp) treeData.push({ category: "Formation", value: Math.round(details.cfp) });
+  } else {
+    treeData.push({ category: "Cotisations", value: Math.round(data.cotis) });
+    treeData.push({ category: "CSG/CRDS", value: Math.round(data.csg) });
+  }
+  
+  return {
+    type: "treemap",
+    data: {
+      datasets: [{
+        label: "Répartition des Cotisations",
+        tree: treeData,
+        key: "value",
+        groups: ['category'],
+        backgroundColor: (ctx) => {
+          if (ctx.type !== 'data') return 'transparent';
+          const cat = ctx.raw._data.category;
+          switch(cat) {
+            case "Retraite": return colors.social; 
+            case "CSG/CRDS": return colors.grid; 
+            case "Santé": return colors.net; 
+            case "Prévoyance": return colors.accent3;
+            case "Alloc. Fam.": return colors.accent2;
+            default: return colors.expense;
+          }
+        },
+        labels: {
+          display: true,
+          color: "white",
+          font: (ctx) => {
+             const val = ctx.raw.v;
+             // Dynamic font size based on value
+             if (val < 500) return { size: 0 }; // Hide text for tiny blocks
+             if (val < 2000) return { size: 10, weight: "normal" };
+             return { size: 14, weight: "bold" };
+          },
+          formatter: (ctx) => {
+            if (ctx.raw.v < 500) return ""; // Hide text
+            return `${ctx.raw._data.category}\n${Math.round(ctx.raw.v).toLocaleString("fr-FR")} €`;
+          }
+        },
+        borderWidth: 1,
+        borderColor: colors.background
+      }]
+    },
+    options: {
+      ...getCommonOptions(colors, "Treemap de la Protection Sociale"),
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        title: { display: true, text: "Répartition des Cotisations", color: colors.text },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.raw._data.category}: ${Math.round(ctx.raw.v).toLocaleString("fr-FR")} €`
+          }
+        }
+      }
+    }
   };
 }
 
@@ -254,175 +420,462 @@ function getTnsChart2Config(data) {
 
 function getSasuIRChart1Config(data) {
   const colors = getChartColors();
+  // DONUT: Répartition des Sources (BNC vs Salaire)
+  // Focus on BNC dominance
+  
+  const bnc = Math.round(data.bncBrut);
+  const salaire = Math.round(data.salaireBrut);
+  const total = bnc + salaire;
   
   return {
     type: "doughnut",
     data: {
-      labels: ["Salaire net", "BNC net", "PS sur BNC"],
+      labels: ["Quote-part BNC", "Salaire"],
       datasets: [{
-        data: [data.salaireNet, data.bncNet, data.charges],
-        backgroundColor: [colors.net, colors.revenue, colors.tax],
+        data: [bnc, salaire],
+        backgroundColor: [
+          "#06b6d4", // Cyan/Turquoise for BNC (Dominant)
+          colors.grid // Grey/White for Salaire (Minor)
+        ],
         borderWidth: 0,
         hoverOffset: 8,
       }],
     },
     options: {
-      ...getCommonOptions(colors, "Composition des revenus"),
-      cutout: "65%",
+      ...getCommonOptions(colors, "Répartition des Sources"),
+      cutout: "60%",
+      layout: {
+        padding: { bottom: 10, top :20 }
+      },
       plugins: {
-        ...getCommonOptions(colors, "Composition des revenus").plugins,
-        tooltip: {
-          ...getCommonOptions(colors, "Composition des revenus").plugins.tooltip,
-          callbacks: {
-            label: function(context) {
-              const label = context.label || "";
-              const value = context.parsed || 0;
-              const total = context.dataset.data.reduce((a, b) => a + b, 0);
-              const percentage = ((value / total) * 100).toFixed(1);
-              return `${label}: ${value.toLocaleString("fr-FR")} € (${percentage}%)`;
-            },
+        ...getCommonOptions(colors, "Répartition des Sources").plugins,
+        legend: {
+          position: "bottom",
+          labels: {
+            color: colors.text,
+            padding: 15,
+            font: { size: 12, weight: "500" },
+            usePointStyle: true,
           },
         },
-      },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              const value = context.parsed || 0;
+              const percentage = ((value / total) * 100).toFixed(1);
+              return `${context.label}: ${value.toLocaleString("fr-FR")} € (${percentage}%)`;
+            }
+          }
+        },
+        subtitle: {
+          display: true,
+          text: `Total Brut : ${Math.round(total/1000)} k€`,
+          color: colors.text,
+          font: { size: 16, weight: 'bold' },
+          padding: { top: 10, bottom: 30 }, // Increased spacing
+          position: 'bottom'
+        }
+      }
     },
+    plugins: [{
+      id: 'centerText',
+      beforeDraw: function(chart) {
+        const { ctx, chartArea: { top, bottom, left, right, width, height } } = chart;
+        
+        ctx.save();
+        const fontSize = (height / 114).toFixed(2);
+        ctx.font = "bold " + fontSize + "em sans-serif";
+        ctx.textBaseline = "middle";
+        ctx.textAlign = "center";
+        ctx.fillStyle = colors.text;
+        
+        const text = Math.round(total/1000) + " k€";
+        const centerX = (left + right) / 2;
+        const centerY = (top + bottom) / 2;
+        
+        ctx.fillText(text, centerX, centerY);
+        ctx.restore();
+      }
+    }]
   };
 }
 
 function getSasuIRChart2Config(data) {
   const colors = getChartColors();
-  const totalBrut = data.salaireNet + data.bncNet + data.charges;
-  const tauxPS = ((data.charges / data.bncNet) * 100).toFixed(1);
+  // EFFICIENCY BAR: BNC Net vs Prélèvements
+  // Horizontal stacked bar
+  
+  const bncNet = Math.round(data.bncNet);
+  const ps = Math.round(data.psAmount);
+  const bncBrut = bncNet + ps;
+  const pctConserv = bncBrut > 0 ? ((bncNet / bncBrut) * 100).toFixed(1) : 0;
   
   return {
     type: "bar",
     data: {
-      labels: ["Revenus"],
+      labels: ["Efficacité BNC"],
       datasets: [
         {
-          label: "Salaire",
-          data: [data.salaireNet],
-          backgroundColor: colors.net,
+          label: "Net BNC",
+          data: [bncNet],
+          backgroundColor: "#10b981", // Emerald
+          barThickness: 50,
         },
         {
-          label: "BNC (après PS)",
-          data: [data.bncNet],
-          backgroundColor: colors.revenue,
+          label: "Prélèvements",
+          data: [ps],
+          backgroundColor: "#f43f5e", // Coral
+          barThickness: 50,
         },
       ],
     },
     options: {
-      ...getCommonOptions(colors, `Revenus nets (PS à ${tauxPS}% sur BNC)`),
+      ...getCommonOptions(colors, "Efficacité de la Quote-part BNC"),
       indexAxis: "y",
       scales: {
         x: {
           stacked: true,
-          ticks: {
-            color: colors.text,
-            callback: function(value) {
-              return value.toLocaleString("fr-FR") + " €";
-            },
-          },
-          grid: { color: colors.gridLight, drawTicks: false },
+          grid: { display: false },
+          ticks: { display: false } // Clean look
         },
         y: {
           stacked: true,
-          ticks: { color: colors.text },
           grid: { display: false },
+          ticks: { display: false } // Hide label "Efficacité BNC" to keep it clean
         },
       },
+      plugins: {
+        ...getCommonOptions(colors, "Efficacité de la Quote-part BNC").plugins,
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.dataset.label}: ${Math.round(ctx.raw).toLocaleString("fr-FR")} €`
+          }
+        },
+        legend: { display: false }, // Hide legend for cleaner look, use datalabels if possible
+        datalabels: {
+          display: true,
+          color: 'white',
+          font: { weight: 'bold' },
+          formatter: (value, ctx) => {
+            if (value < 1000) return "";
+            const pct = ((value / bncBrut) * 100).toFixed(1);
+            return `${Math.round(value/1000)} k€\n(${pct}%)`;
+          },
+          anchor: 'center',
+          align: 'center',
+        }
+      }
     },
+    plugins: [ChartDataLabels]
   };
 }
 
 // ========== SASU IS CHARTS ==========
 
-function getSasuISChart1Config(data) {
+function getSasuIsChart1Config(data) {
+  console.log('[Chart Debug] getSasuIsChart1Config called with data:', data);
   const colors = getChartColors();
+  // WATERFALL: Marge -> Coût Salaire -> IS -> Flat Tax -> Net Dirigeant
+  // Using floating bars [min, max] to create a true waterfall effect without negative bars
+  
+  const marge = Math.round(data.marge || (data.superBrut + data.is + data.divBrut)); 
+  const coutSal = Math.round(data.superBrut);
+  const is = Math.round(data.is);
+  const flatTax = Math.round(data.flatTax);
+  const net = Math.round(data.net);
+  
+  // Calculate steps
+  // Step 1: Marge (Starts at 0, ends at Marge)
+  // Step 2: Coût Salaire (Starts at Marge - Coût, ends at Marge)
+  // Step 3: IS (Starts at Marge - Coût - IS, ends at Marge - Coût)
+  // Step 4: Flat Tax (Starts at Net, ends at Net + Flat Tax) -> Wait, Net + Flat Tax = Marge - Coût - IS
+  // Step 5: Net (Starts at 0, ends at Net)
+  
+  const step1_end = marge;
+  const step2_start = step1_end - coutSal;
+  const step3_start = step2_start - is;
+  const step4_start = step3_start - flatTax; // Should equal net
   
   return {
     type: "bar",
     data: {
-      labels: ["Utilisation du CA"],
-      datasets: [
-        {
-          label: "Charges externes",
-          data: [data.chargesExt],
-          backgroundColor: colors.external,
-        },
-        {
-          label: "Charges sociales",
-          data: [data.chargesSoc],
-          backgroundColor: colors.social,
-        },
-        {
-          label: "IS",
-          data: [data.is],
-          backgroundColor: colors.tax,
-        },
-        {
-          label: "Net dirigeant",
-          data: [data.net],
-          backgroundColor: colors.revenue,
-        },
-      ],
+      labels: ["Marge Disponible", "Coût Salaire", "Impôt Société", "Flat Tax / PFU", "Net Dirigeant"],
+      datasets: [{
+        data: [
+          [0, marge],           // Marge
+          [step2_start, step1_end], // Coût Salaire (Drop)
+          [step3_start, step2_start], // IS (Drop)
+          [step4_start, step3_start], // Flat Tax (Drop)
+          [0, step4_start]      // Net (should connect to previous bar)
+        ],
+        backgroundColor: [
+          colors.grid,   // Marge (Grey)
+          colors.social, // Coût Salaire (Purple)
+          colors.tax,    // IS (Red)
+          "#f43f5e",     // Flat Tax (Coral)
+          "#10b981"      // Net (Green)
+        ],
+      }]
     },
     options: {
-      ...getCommonOptions(colors, "Allocation du chiffre d'affaires"),
-      indexAxis: "y",
-      scales: {
-        x: {
-          stacked: true,
-          ticks: {
-            color: colors.text,
-            callback: function(value) {
-              return value.toLocaleString("fr-FR") + " €";
-            },
+      ...getCommonOptions(colors, "Double Détente Fiscale (Cascade)"),
+      plugins: {
+        ...getCommonOptions(colors, "Double Détente Fiscale (Cascade)").plugins,
+        legend: {
+          display: false
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              const raw = context.raw;
+              let value = 0;
+              if (Array.isArray(raw)) {
+                value = raw[1] - raw[0];
+              } else {
+                value = raw;
+              }
+              return `${context.label}: ${Math.round(value).toLocaleString("fr-FR")} €`;
+            }
+          }
+        },
+        datalabels: {
+          display: true,
+          color: 'white',
+          font: { weight: 'bold' },
+          formatter: (value, ctx) => {
+            let val = 0;
+            if (Array.isArray(value)) {
+               val = value[1] - value[0];
+            } else {
+               val = value;
+            }
+            if (Math.abs(val) < 1000) return "";
+            return Math.round(val/1000) + " k€";
           },
-          grid: { color: colors.gridLight, drawTicks: false },
-        },
-        y: {
-          stacked: true,
-          ticks: { color: colors.text },
-          grid: { display: false },
-        },
-      },
+          anchor: 'center',
+          align: 'center',
+        }
+      }
     },
+    plugins: [ChartDataLabels]
   };
 }
 
-function getSasuISChart2Config(data) {
+function getSasuIsChart2Config(data) {
+  console.log('[Chart Debug] getSasuIsChart2Config called with data:', data);
   const colors = getChartColors();
-  const total = data.chargesExt + data.chargesSoc + data.is + data.net;
+  // DONUT: Dividendes Nets vs Salaire Net
+  
+  const divNet = Math.round(data.divNet);
+  const salNet = Math.round(data.remNet);
+  const total = divNet + salNet;
   
   return {
     type: "doughnut",
     data: {
-      labels: ["Net dirigeant", "Charges sociales", "IS", "Charges externes"],
+      labels: ["Dividendes Nets", "Salaire Net"],
       datasets: [{
-        data: [data.net, data.chargesSoc, data.is, data.chargesExt],
-        backgroundColor: [colors.revenue, colors.social, colors.tax, colors.external],
+        data: [divNet, salNet],
+        backgroundColor: [
+          "#2563eb", // Royal Blue for Dividends
+          colors.grid // Grey/White for Salary
+        ],
         borderWidth: 0,
         hoverOffset: 8,
       }],
     },
     options: {
-      ...getCommonOptions(colors, "Répartition des coûts"),
-      cutout: "65%",
+      ...getCommonOptions(colors, "Structure de Rémunération"),
+      cutout: "60%",
+      layout: {
+        padding: { bottom: 10 }
+      },
       plugins: {
-        ...getCommonOptions(colors, "Répartition des coûts").plugins,
-        tooltip: {
-          ...getCommonOptions(colors, "Répartition des coûts").plugins.tooltip,
-          callbacks: {
-            label: function(context) {
-              const label = context.label || "";
-              const value = context.parsed || 0;
-              const percentage = ((value / total) * 100).toFixed(1);
-              return `${label}: ${value.toLocaleString("fr-FR")} € (${percentage}%)`;
-            },
+        ...getCommonOptions(colors, "Structure de Rémunération").plugins,
+        legend: {
+          position: "bottom",
+          labels: {
+            color: colors.text,
+            padding: 15,
+            font: { size: 12, weight: "500" },
+            usePointStyle: true,
           },
         },
-      },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              const value = context.parsed || 0;
+              const percentage = ((value / total) * 100).toFixed(1);
+              return `${context.label}: ${value.toLocaleString("fr-FR")} € (${percentage}%)`;
+            }
+          }
+        },
+        subtitle: {
+          display: true,
+          text: `Total Net : ${Math.round(total).toLocaleString("fr-FR")} €`,
+          color: colors.text,
+          font: { size: 16, weight: 'bold' },
+          padding: { top: 10, bottom: 30 },
+          position: 'bottom'
+        }
+      }
     },
+    plugins: [{
+      id: 'centerText2',
+      beforeDraw: function(chart) {
+        const { ctx, chartArea: { top, bottom, left, right, width, height } } = chart;
+        
+        ctx.save();
+        const fontSize = (height / 114).toFixed(2);
+        ctx.font = "bold " + fontSize + "em sans-serif";
+        ctx.textBaseline = "middle";
+        ctx.textAlign = "center";
+        ctx.fillStyle = colors.text;
+        
+        const text = Math.round(total/1000) + " k€";
+        const centerX = (left + right) / 2;
+        const centerY = (top + bottom) / 2;
+        
+        ctx.fillText(text, centerX, centerY);
+        ctx.restore();
+      }
+    }]
+  };
+}
+
+function getSasuIsChart3Config(data) {
+  console.log('[Chart Debug] getSasuIsChart3Config called with data:', data);
+  const colors = getChartColors();
+  // TREEMAP: Net Dirigeant vs Prélèvements Publics
+  
+  const net = Math.round(data.net || 0);
+  const flatTax = Math.round(data.flatTax || 0);
+  const is = Math.round(data.is || 0);
+  const chargesSoc = Math.round(data.chargesSoc || 0);
+  
+  return {
+    type: "treemap",
+    data: {
+      labels: ["Net Dirigeant", "Flat Tax (PFU)", "Impôt Société", "Charges Sociales"],
+      datasets: [{
+        tree: [net, flatTax, is, chargesSoc],
+        backgroundColor: (ctx) => {
+          const bgColors = ["#10b981", "#ef4444", "#f97316", "#fca5a5"];
+          return bgColors[ctx.dataIndex];
+        },
+        borderWidth: 2,
+        borderColor: colors.background,
+        spacing: 1,
+        labels: {
+          display: true,
+          align: 'center',
+          color: 'white',
+          font: {
+            size: 12,
+            weight: 'bold'
+          },
+          formatter: (ctx) => {
+            const labels = ["Net Dirigeant", "Flat Tax (PFU)", "Impôt Société", "Charges Sociales"];
+            const values = [net, flatTax, is, chargesSoc];
+            return [labels[ctx.dataIndex], Math.round(values[ctx.dataIndex]/1000) + " k€"];
+          }
+        }
+      }]
+    },
+    options: {
+      ...getCommonOptions(colors, "Répartition de la Valeur Ajoutée"),
+      plugins: {
+        ...getCommonOptions(colors, "Répartition de la Valeur Ajoutée").plugins,
+        legend: {
+          display: false
+        },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const labels = ["Net Dirigeant", "Flat Tax (PFU)", "Impôt Société", "Charges Sociales"];
+              const values = [net, flatTax, is, chargesSoc];
+              return `${labels[ctx.dataIndex]}: ${values[ctx.dataIndex].toLocaleString("fr-FR")} €`;
+            }
+          }
+        }
+      },
+      hover: {
+        animationDuration: 100
+      }
+    }
+  };
+}
+
+function getSasuIsChart4Config(data) {
+  console.log('[Chart Debug] getSasuIsChart4Config called with data:', data);
+  const colors = getChartColors();
+  // BAR: Détail des Cotisations (Retraite, Santé, etc.)
+  
+  const details = data.details || {};
+  
+  let retraite = 0, sante = 0, famille = 0, autres = 0;
+  
+  if (details.retraite) retraite += details.retraite;
+  if (details.retraiteComp) retraite += details.retraiteComp;
+  if (details.maladie) sante += details.maladie;
+  if (details.csg) autres += details.csg; 
+  if (details.famille) famille += details.famille;
+  if (details.chomage) autres += details.chomage;
+  
+  // Fallback if details are empty but total charges exist
+  if (retraite === 0 && sante === 0 && data.charges > 0) {
+     retraite = data.charges * 0.6; 
+     sante = data.charges * 0.3;
+     autres = data.charges * 0.1;
+  }
+  const validates4Q = data.salBrut && data.min4QThreshold && data.salBrut >= data.min4QThreshold;
+  
+  return {
+    type: "bar",
+    data: {
+      labels: ["Retraite", "Santé", "Famille / Autres"],
+      datasets: [{
+        data: [retraite, sante, famille + autres],
+        backgroundColor: [colors.social, colors.accent1, colors.accent2],
+        barThickness: 30,
+      }]
+    },
+    options: {
+      ...getCommonOptions(colors, `Répartition du Coût Social (${Math.round(data.charges).toLocaleString()} €)`),
+      indexAxis: 'y',
+      scales: {
+        x: {
+          grid: { color: colors.gridLight },
+          ticks: { callback: (v) => v + " €" }
+        },
+        y: { grid: { display: false } }
+      },
+      plugins: {
+        ...getCommonOptions(colors, "Répartition du Coût Social").plugins,
+        legend: {
+          display: false
+        },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.label}: ${Math.round(ctx.raw).toLocaleString("fr-FR")} €`
+          }
+        },
+        datalabels: {
+          color: 'white',
+          font: { size: 10, weight: 'bold' },
+          formatter: (value, ctx) => {
+            // Show "✅ 4 Trim." only on the first bar (Retraite) if validated
+            if (ctx.dataIndex === 0 && validates4Q) {
+              return '✅ 4 Trim.';
+            }
+            return '';
+          },
+          anchor: 'center',
+          align: 'center'
+        }
+      }
+    },
+    plugins: [ChartDataLabels]
   };
 }
 
@@ -430,83 +883,157 @@ function getSasuISChart2Config(data) {
 
 function getMicroChart1Config(data) {
   const colors = getChartColors();
+  const ca = data.ca || (data.net + data.cotis);
+  const netPct = ca > 0 ? ((data.net / ca) * 100) : 0;
   
   return {
     type: "doughnut",
     data: {
-      labels: ["Rémunération nette", "Cotisations sociales"],
+      labels: ["Rémunération Nette", "Charges URSSAF"],
       datasets: [{
         data: [data.net, data.cotis],
-        backgroundColor: [colors.revenue, colors.social],
+        backgroundColor: [
+          "#10b981", // Green neon for net
+          "#f97316"  // Coral for charges
+        ],
         borderWidth: 0,
         hoverOffset: 8,
       }],
     },
     options: {
-      ...getCommonOptions(colors, "Répartition CA"),
+      ...getCommonOptions(colors, "Jauge de Performance Nette"),
       cutout: "65%",
+      layout: {
+        padding: { bottom: 10 }
+      },
       plugins: {
-        ...getCommonOptions(colors, "Répartition CA").plugins,
+        ...getCommonOptions(colors, "Jauge de Performance Nette").plugins,
+        legend: {
+          display: false
+        },
         tooltip: {
-          ...getCommonOptions(colors, "Répartition CA").plugins.tooltip,
           callbacks: {
             label: function(context) {
-              const label = context.label || "";
               const value = context.parsed || 0;
-              const total = context.dataset.data.reduce((a, b) => a + b, 0);
-              const percentage = ((value / total) * 100).toFixed(1);
-              return `${label}: ${value.toLocaleString("fr-FR")} € (${percentage}%)`;
-            },
-          },
+              const percentage = ((value / ca) * 100).toFixed(1);
+              return `${context.label}: ${Math.round(value).toLocaleString("fr-FR")} € (${percentage}%)`;
+            }
+          }
         },
-      },
+        subtitle: {
+          display: true,
+          text: `${Math.round(netPct)}% Net Poche`,
+          color: '#10b981',
+          font: { size: 16, weight: 'bold' },
+          padding: { top: 15, bottom: 10 },
+          position: 'bottom'
+        }
+      }
     },
+    plugins: [{
+      id: 'centerTextMicro',
+      beforeDraw: function(chart) {
+        const { ctx, chartArea: { top, bottom, left, right, width, height } } = chart;
+        
+        ctx.save();
+        // Main CA text (reduced further by 25%)
+        const fontSize1 = (height / 160).toFixed(2);  // Was 120, now 160 (25% reduction)
+        ctx.font = "bold " + fontSize1 + "em sans-serif";
+        ctx.textBaseline = "middle";
+        ctx.textAlign = "center";
+        ctx.fillStyle = colors.text;
+        
+        const caText = Math.round(ca).toLocaleString("fr-FR") + " €";
+        const centerX = (left + right) / 2;
+        const centerY = (top + bottom) / 2 - 5;
+        
+        ctx.fillText(caText, centerX, centerY);
+        
+        // Subtitle "CA" (reduced further by 25%)
+        const fontSize2 = (height / 260).toFixed(2);  // Was 200, now 260 (25% reduction)
+        ctx.font = fontSize2 + "em sans-serif";
+        ctx.fillStyle = colors.gridLight;
+        ctx.fillText("Chiffre d'Affaires", centerX, centerY + 18);
+        
+        ctx.restore();
+      }
+    }]
   };
 }
 
 function getMicroChart2Config(data) {
   const colors = getChartColors();
-  const total = data.net + data.cotis;
-  const tauxCotis = ((data.cotis / total) * 100).toFixed(1);
+  // TREEMAP: Breakdown of social charges
+  
+  const retraite = Math.round(data.retraite || 0);
+  const csg = Math.round(data.csg || 0);
+  const maladie = Math.round(data.maladie || 0);
+  const autres = Math.round(data.autres || 0);
+  
+  // Calculate percentage for subtitle
+  const totalCharges = retraite + csg + maladie + autres;
+  const retraitePct = totalCharges > 0 ? Math.round((retraite / totalCharges) * 100) : 0;
   
   return {
-    type: "bar",
+    type: "treemap",
     data: {
-      labels: ["CA"],
-      datasets: [
-        {
-          label: `Rémunération (${(100 - parseFloat(tauxCotis)).toFixed(1)}%)`,
-          data: [data.net],
-          backgroundColor: colors.revenue,
+      labels: ["Retraite (Différée)", "CSG/CRDS", "Maladie", "Invalidité / CFP"],
+      datasets: [{
+        tree: [retraite, csg, maladie, autres],
+        backgroundColor: (ctx) => {
+          const bgColors = ["#8b5cf6", "#9ca3af", "#60a5fa", "#d1d5db"];
+          return bgColors[ctx.dataIndex];
         },
-        {
-          label: `Cotisations (${tauxCotis}%)`,
-          data: [data.cotis],
-          backgroundColor: colors.social,
-        },
-      ],
+        borderWidth: 2,
+        borderColor: colors.background,
+        spacing: 1,
+        labels: {
+          display: true,
+          align: 'center',
+          color: 'white',
+          font: {
+            size: 12,
+            weight: 'bold'
+          },
+          formatter: (ctx) => {
+            const labels = ["Retraite (Différée)", "CSG/CRDS", "Maladie", "Invalidité / CFP"];
+            const values = [retraite, csg, maladie, autres];
+            const value = values[ctx.dataIndex];
+            if (value < 500) return ''; // Hide tiny values
+            return [labels[ctx.dataIndex], Math.round(value/1000) + " k€"];
+          }
+        }
+      }]
     },
     options: {
-      ...getCommonOptions(colors, "Taux de cotisations"),
-      indexAxis: "y",
-      scales: {
-        x: {
-          stacked: true,
-          ticks: {
-            color: colors.text,
-            callback: function(value) {
-              return value.toLocaleString("fr-FR") + " €";
-            },
-          },
-          grid: { color: colors.gridLight, drawTicks: false },
+      ...getCommonOptions(colors, "Radiographie des Charges"),
+      plugins: {
+        ...getCommonOptions(colors, "Radiographie des Charges").plugins,
+        legend: {
+          display: false
         },
-        y: {
-          stacked: true,
-          ticks: { color: colors.text },
-          grid: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const labels = ["Retraite (Différée)", "CSG/CRDS", "Maladie", "Invalidité / CFP"];
+              const values = [retraite, csg, maladie, autres];
+              return `${labels[ctx.dataIndex]}: ${values[ctx.dataIndex].toLocaleString("fr-FR")} €`;
+            }
+          }
         },
+        subtitle: {
+          display: true,
+          text: `Épargne Retraite : ~${retraitePct}% de vos charges`,
+          color: '#8b5cf6',
+          font: { size: 13, weight: 'bold' },
+          padding: { top: 5, bottom: 15 },
+          position: 'bottom'
+        }
       },
-    },
+      hover: {
+        animationDuration: 100
+      }
+    }
   };
 }
 
@@ -514,89 +1041,210 @@ function getMicroChart2Config(data) {
 
 function getSalarieChart1Config(data) {
   const colors = getChartColors();
+  // WATERFALL: Super Brut → Charges Pat → Brut → Charges Sal → Net
+  
+  const superBrut = Math.round(data.superBrut || 0);
+  const chargesPat = Math.round(data.chargesPat || 0);
+  const brut = Math.round(data.brutTotal || 0);
+  const chargesSal = Math.round(data.chargesSal || 0);
+  const net = Math.round(data.net || 0);
+  
+  // Calculate waterfall steps
+  const step1_end = superBrut - chargesPat; // should equal brut
+  const step2_end = brut - chargesSal; // should equal net
   
   return {
     type: "bar",
     data: {
-      labels: ["Coût total employeur"],
-      datasets: [
-        {
-          label: "Net salarié",
-          data: [data.net],
-          backgroundColor: colors.revenue,
-        },
-        {
-          label: "Charges salariales",
-          data: [data.chargesSal],
-          backgroundColor: colors.social,
-        },
-        {
-          label: "Charges patronales",
-          data: [data.chargesPat],
-          backgroundColor: colors.expense,
-        },
-      ],
+      labels: ["Coût Total", "Charges Patronales", "Salaire Brut", "Charges Salariales", "Net avant IR"],
+      datasets: [{
+        data: [
+          [0, superBrut],           // Coût Total (base)
+          [step1_end, superBrut],   // Charges Pat (drop)
+          [0, brut],                // Brut (intermediate step)
+          [step2_end, brut],        // Charges Sal (drop)
+          [0, net]                  // Net (final)
+        ],
+        backgroundColor: [
+          colors.grid,    // Coût total (grey)
+          colors.social,  // Charges Pat (purple)
+          "#6b7280",      // Brut (grey lighter)
+          colors.tax,     // Charges Sal (red)
+          "#10b981"       // Net (green)
+        ],
+      }]
     },
     options: {
-      ...getCommonOptions(colors, "Décomposition du super-brut"),
-      indexAxis: "y",
-      scales: {
-        x: {
-          stacked: true,
-          ticks: {
-            color: colors.text,
-            callback: function(value) {
-              return value.toLocaleString("fr-FR") + " €";
-            },
+      ...getCommonOptions(colors, "Cascade du Super Brut au Net"),
+      plugins: {
+        ...getCommonOptions(colors, "Cascade du Super Brut au Net").plugins,
+        legend: {
+          display: false
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              const raw = context.raw;
+              let value = 0;
+              if (Array.isArray(raw)) {
+                value = raw[1] - raw[0];
+              } else {
+                value = raw;
+              }
+              return `${context.label}: ${Math.round(value).toLocaleString("fr-FR")} €`;
+            }
+          }
+        },
+        datalabels: {
+          display: true,
+          color: 'white',
+          font: { weight: 'bold' },
+          formatter: (value) => {
+            let val = 0;
+            if (Array.isArray(value)) {
+               val = value[1] - value[0];
+            } else {
+               val = value;
+            }
+            if (Math.abs(val) < 1000) return "";
+            return Math.round(val/1000) + " k€";
           },
-          grid: { color: colors.gridLight, drawTicks: false },
-        },
-        y: {
-          stacked: true,
-          ticks: { color: colors.text },
-          grid: { display: false },
-        },
-      },
+          anchor: 'center',
+          align: 'center',
+        }
+      }
     },
+    plugins: [ChartDataLabels]
   };
 }
 
 function getSalarieChart2Config(data) {
   const colors = getChartColors();
-  const brut = data.net + data.chargesSal;
-  const tauxSal = ((data.chargesSal / brut) * 100).toFixed(1);
-  const tauxPat = ((data.chargesPat / brut) * 100).toFixed(1);
+  // STACKED BAR: Part visible (salariale) vs cachée (patronale)
+  
+  const chargesSal = Math.round(data.chargesSal || 0);
+  const chargesPat = Math.round(data.chargesPat || 0);
+  const totalCharges = chargesSal + chargesPat;
+  const pctSal = totalCharges > 0 ? ((chargesSal / totalCharges) * 100).toFixed(1) : 0;
+  const pctPat = totalCharges > 0 ? ((chargesPat / totalCharges) * 100).toFixed(1) : 0;
   
   return {
-    type: "doughnut",
+    type: "bar",
     data: {
-      labels: ["Net salarié", "Charges salariales", "Charges patronales"],
-      datasets: [{
-        data: [data.net, data.chargesSal, data.chargesPat],
-        backgroundColor: [colors.revenue, colors.social, colors.expense],
-        borderWidth: 0,
-        hoverOffset: 8,
-      }],
+      labels: ["Fardeau Social"],
+      datasets: [
+        {
+          label: `Part Salariale (${pctSal}%)`,
+          data: [chargesSal],
+          backgroundColor: "#60a5fa", // Blue medium
+        },
+        {
+          label: `Part Patronale (${pctPat}%)`,
+          data: [chargesPat],
+          backgroundColor: "#8b5cf6", // Purple (coût caché)
+        }
+      ]
     },
     options: {
-      ...getCommonOptions(colors, `Taux de charges (Sal: ${tauxSal}% | Pat: ${tauxPat}%)`),
-      cutout: "65%",
-      plugins: {
-        ...getCommonOptions(colors, `Taux de charges (Sal: ${tauxSal}% | Pat: ${tauxPat}%)`).plugins,
-        tooltip: {
-          ...getCommonOptions(colors, `Taux de charges (Sal: ${tauxSal}% | Pat: ${tauxPat}%)`).plugins.tooltip,
-          callbacks: {
-            label: function(context) {
-              const label = context.label || "";
-              const value = context.parsed || 0;
-              const total = context.dataset.data.reduce((a, b) => a + b, 0);
-              const percentage = ((value / total) * 100).toFixed(1);
-              return `${label}: ${value.toLocaleString("fr-FR")} € (${percentage}%)`;
-            },
-          },
+      ...getCommonOptions(colors, `L'Iceberg des Cotisations (Total: ${Math.round(totalCharges).toLocaleString()} €)`),
+      scales: {
+        x: {
+          stacked: true,
+          display: false
         },
+        y: {
+          stacked: true,
+          ticks: {
+            color: colors.text,
+            callback: (value) => value.toLocaleString("fr-FR") + " €"
+          },
+          grid: { color: colors.gridLight }
+        }
       },
+      plugins: {
+        ...getCommonOptions(colors, "L'Iceberg des Cotisations").plugins,
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const value = ctx.parsed.y || 0;
+              const pct = totalCharges > 0 ? ((value / totalCharges) * 100).toFixed(1) : 0;
+              return `${ctx.dataset.label}: ${Math.round(value).toLocaleString("fr-FR")} € (${pct}%)`;
+            }
+          }
+        },
+        datalabels: {
+          color: 'white',
+          font: { weight: 'bold', size: 12 },
+          formatter: (value) => {
+            if (value < 1000) return "";
+            return Math.round(value/1000) + " k€";
+          },
+          anchor: 'center',
+          align: 'center'
+        }
+      }
     },
+    plugins: [ChartDataLabels]
+  };
+}
+
+function getSalarieChart3Config(data) {
+  const colors = getChartColors();
+  // GROUPED HORIZONTAL BAR: Financing by risk type
+  
+  return {
+    type: 'bar',
+    data: {
+      labels: ['Retraite', 'Santé & Famille', 'Chômage'],
+      datasets: [
+        {
+          label: 'Part Salariale',
+          data: [data.retraiteSal || 0, data.santeSal || 0, data.chomageSal || 0],
+          backgroundColor: '#60a5fa' // Blue light
+        },
+        {
+          label: 'Part Patronale', 
+          data: [data.retraitePat || 0, data.santePat || 0, data.chomagePat || 0],
+          backgroundColor: '#8b5cf6' // Purple
+        }
+      ]
+    },
+    options: {
+      ...getCommonOptions(colors, "Financement de la Protection Sociale"),
+      indexAxis: 'y', // Horizontal
+      scales: {
+        x: {
+          ticks: {
+            color: colors.text,
+            callback: (value) => Math.round(value/1000) + " k€"
+          },
+          grid: { color: colors.gridLight }
+        },
+        y: {
+          ticks: { color: colors.text },
+          grid: { display: false }
+        }
+      },
+      plugins: {
+        ...getCommonOptions(colors, "Financement de la Protection Sociale").plugins,
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.dataset.label}: ${Math.round(ctx.raw).toLocaleString("fr-FR")} €`
+          }
+        },
+        datalabels: {
+          color: 'white',
+          font: { weight: 'bold', size: 10 },
+          formatter: (value) => {
+            if (value < 1000) return "";
+            return Math.round(value/1000) + " k€";
+          },
+          anchor: 'end',
+          align: 'end'
+        }
+      }
+    },
+    plugins: [ChartDataLabels]
   };
 }
 
@@ -606,22 +1254,27 @@ export function updateCharts(mode, data, forceRecreate = false) {
     case "tns":
       createOrUpdateChart("chartTns1", getTnsChart1Config(data), forceRecreate);
       createOrUpdateChart("chartTns2", getTnsChart2Config(data), forceRecreate);
+      createOrUpdateChart("chartTns3", getTnsChart3Config(data), forceRecreate);
       break;
     case "sasuIR":
       createOrUpdateChart("chartSasuIR1", getSasuIRChart1Config(data), forceRecreate);
       createOrUpdateChart("chartSasuIR2", getSasuIRChart2Config(data), forceRecreate);
       break;
     case "sasuIS":
-      createOrUpdateChart("chartSasuIS1", getSasuISChart1Config(data), forceRecreate);
-      createOrUpdateChart("chartSasuIS2", getSasuISChart2Config(data), forceRecreate);
+      createOrUpdateChart("chartSasuIS1", getSasuIsChart1Config(data), forceRecreate);
+      createOrUpdateChart("chartSasuIS2", getSasuIsChart2Config(data), forceRecreate);
+      createOrUpdateChart("chartSasuIS3", getSasuIsChart3Config(data), forceRecreate);
+      createOrUpdateChart("chartSasuIS4", getSasuIsChart4Config(data), forceRecreate);
       break;
     case "micro":
-      createOrUpdateChart("chartMicro1", getMicroChart1Config(data), forceRecreate);
-      createOrUpdateChart("chartMicro2", getMicroChart2Config(data), forceRecreate);
+      // Force recreation for Micro to update custom plugin + treemap
+      createOrUpdateChart("chartMicro1", getMicroChart1Config(data), true);
+      createOrUpdateChart("chartMicro2", getMicroChart2Config(data), true);
       break;
     case "salarie":
-      createOrUpdateChart("chartSalarie1", getSalarieChart1Config(data));
-      createOrUpdateChart("chartSalarie2", getSalarieChart2Config(data));
+      createOrUpdateChart("chartSalarie1", getSalarieChart1Config(data), forceRecreate);
+      createOrUpdateChart("chartSalarie2", getSalarieChart2Config(data), forceRecreate);
+      createOrUpdateChart("chartSalarie3", getSalarieChart3Config(data), forceRecreate);
       break;
     default:
       console.warn(`Unknown chart mode: ${mode}`);

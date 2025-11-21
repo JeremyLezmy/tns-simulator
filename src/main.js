@@ -498,8 +498,6 @@ window.toggleSasuIRView = function(view) {
   }
 };
 
-window.toggleSisuView = toggleSisuView;
-
 window.toggleMicroView = function(view) {
   const detailWrapper = document.getElementById("microDetailWrapper");
   const visualWrapper = document.getElementById("microVisualWrapper");
@@ -511,6 +509,9 @@ window.toggleMicroView = function(view) {
     visualWrapper.style.display = "block";
     btnDetail.classList.remove("active");
     btnVisual.classList.add("active");
+    
+    // Trigger recalculation to replay animation
+    document.getElementById("calcMicroBtn")?.click();
   } else {
     detailWrapper.style.display = "block";
     visualWrapper.style.display = "none";
@@ -518,6 +519,10 @@ window.toggleMicroView = function(view) {
     btnVisual.classList.remove("active");
   }
 };
+
+window.toggleSisuView = toggleSisuView;
+
+
 
 window.toggleSalarieView = function(view) {
   const detailWrapper = document.getElementById("salarieDetailWrapper");
@@ -530,6 +535,9 @@ window.toggleSalarieView = function(view) {
     visualWrapper.style.display = "block";
     btnDetail.classList.remove("active");
     btnVisual.classList.add("active");
+    
+    // Trigger recalculation to replay animation
+    document.getElementById("calcSalarieBtn")?.click();
   } else {
     detailWrapper.style.display = "block";
     visualWrapper.style.display = "none";

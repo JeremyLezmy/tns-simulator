@@ -75,10 +75,37 @@ function updateMicroUI(result, ca, activity, acreOn) {
   safeSetText("sumMicroPct", `${(result.totalRate * 100).toFixed(2).replace(".", ",")} %`);
   safeSetText("sumMicroTot", fmtEUR(result.cotisations));
 
-  // Update Chart
+  // Calculate detailed breakdown for charts
+  const weights = getSocialWeights(activity);
+  const effectiveSocialRate = acreOn ? baseRate / 2 : baseRate;
+  
+  // Retirement (base + complementary)
+  const retraiteBase = ca * ((weights.retBase || weights.vieillesse_base_1 || 0) + 
+                              (weights.vieillesse_base_2 || 0)) * effectiveSocialRate;
+  const retraiteCompl = ca * (weights.retCompl || weights.vieillesse_compl || 0) * effectiveSocialRate;
+  const retraiteTotal = retraiteBase + retraiteCompl;
+  
+  // CSG/CRDS
+  const csgAmount = ca * (weights.csg || 0) * effectiveSocialRate;
+  
+  // Maladie (health)
+  const maladieAmount = ca * ((weights.maladie || 0) + (weights.prestations_maladie || 0)) * effectiveSocialRate;
+  
+  // Invalidité + CFP (grouped as "Autres")
+  const invaliditeAmount = ca * (weights.invalidite || 0) * effectiveSocialRate;
+  const cfpAmount = ca * cfpRate;
+  const autresAmount = invaliditeAmount + cfpAmount;
+
+  // Update Chart with enriched data
   updateCharts("micro", {
+    ca,
+    activity,
     net: result.remuneration,
     cotis: result.cotisations,
+    retraite: retraiteTotal,
+    csg: csgAmount,
+    maladie: maladieAmount,
+    autres: autresAmount
   });
 }
 

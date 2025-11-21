@@ -109,7 +109,7 @@ section {
   scroll-margin-top: calc(var(--topbar-h) + 12px);
 }
 h1 {
-  font-size: 22px;
+  font-size: 35px;
   margin: 0 0 6px;
 }
 h2 {
@@ -353,17 +353,21 @@ select:disabled {
 
 @media (min-width: 840px) {
   .charts-container {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, 1fr);
+  }
+  /* If we have an odd number of charts (e.g. 3), make the last one full width */
+  .chart-wrapper:last-child:nth-child(odd) {
+    grid-column: span 2;
   }
 }
 
 .chart-wrapper {
   background: var(--panel);
   border-radius: 12px;
-  padding: 20px;
+  padding: 30px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  min-height: 300px;
-  max-height: 450px;
+  min-height: 400px;
+  max-height: 500px;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;

@@ -29,6 +29,7 @@ function getChartColors() {
       
       // UI colors
       text: "#e5e7eb",
+      highContrastText: "#f9fafb", // Almost white for dark mode
       grid: "#374151",
       gridLight: "#1f2937",
       background: "rgba(17, 24, 39, 0.95)",
@@ -51,6 +52,7 @@ function getChartColors() {
       
       // UI colors
       text: "#374151",
+      highContrastText: "#111827", // Almost black for light mode
       grid: "#d1d5db",
       gridLight: "#f3f4f6",
       background: "rgba(255, 255, 255, 0.95)",
@@ -211,15 +213,15 @@ function getTnsChart1Config(data) {
   
   // Only add Charges Ext branch if > 0
   if (chargesExt > 0) {
-    flows.push({ from: "Chiffre d'Affaires", to: "Charges Externes", flow: chargesExt });
-    flows.push({ from: "Chiffre d'Affaires", to: "Marge Disponible", flow: dispo });
+    flows.push({ from: "CA", to: "Charges Externes", flow: chargesExt });
+    flows.push({ from: "CA", to: "Marge", flow: dispo });
   } else {
     // If no charges, we still want a flow from CA to Marge to show the full amount
-    flows.push({ from: "Chiffre d'Affaires", to: "Marge Disponible", flow: dispo });
+    flows.push({ from: "CA", to: "Marge", flow: dispo });
   }
   
-  flows.push({ from: "Marge Disponible", to: "Rémunération Nette", flow: net });
-  flows.push({ from: "Marge Disponible", to: "Cotisations Sociales", flow: social });
+  flows.push({ from: "Marge", to: "Rémunération Nette", flow: net });
+  flows.push({ from: "Marge", to: "Cotisations Sociales", flow: social });
 
   return {
     type: "sankey",
@@ -227,11 +229,11 @@ function getTnsChart1Config(data) {
       datasets: [{
         label: "Flux Financier",
         data: flows,
-        colorFrom: (c) => c.dataset.data[c.dataIndex].from === "Chiffre d'Affaires" ? colors.text : colors.revenue,
+        colorFrom: (c) => c.dataset.data[c.dataIndex].from === "CA" ? colors.text : colors.revenue,
         colorTo: (c) => {
           const to = c.dataset.data[c.dataIndex].to;
           if (to === "Charges Externes") return colors.external;
-          if (to === "Marge Disponible") return colors.revenue;
+          if (to === "Marge") return colors.revenue;
           if (to === "Rémunération Nette") return colors.net;
           if (to === "Cotisations Sociales") return colors.social;
           return colors.grid;
@@ -249,7 +251,8 @@ function getTnsChart1Config(data) {
         tooltip: {
           callbacks: {
             label: (ctx) => `${ctx.raw.from} → ${ctx.raw.to}: ${Math.round(ctx.raw.flow).toLocaleString("fr-FR")} €`
-          }
+          },
+          displayColors: false // Fix: remove white square on hover
         }
       }
     }
@@ -487,7 +490,7 @@ function getSasuIRChart1Config(data) {
         ctx.font = "bold " + fontSize + "em sans-serif";
         ctx.textBaseline = "middle";
         ctx.textAlign = "center";
-        ctx.fillStyle = colors.text;
+        ctx.fillStyle = colors.highContrastText; // Fix contrast
         
         const text = Math.round(total/1000) + " k€";
         const centerX = (left + right) / 2;
@@ -758,7 +761,7 @@ function getSasuIsChart2Config(data) {
         ctx.font = "bold " + fontSize + "em sans-serif";
         ctx.textBaseline = "middle";
         ctx.textAlign = "center";
-        ctx.fillStyle = colors.text;
+        ctx.fillStyle = colors.highContrastText; // Fix contrast
         
         const text = Math.round(total/1000) + " k€";
         const centerX = (left + right) / 2;
@@ -969,7 +972,7 @@ function getMicroChart1Config(data) {
         ctx.font = "bold " + fontSize1 + "em sans-serif";
         ctx.textBaseline = "middle";
         ctx.textAlign = "center";
-        ctx.fillStyle = colors.text;
+        ctx.fillStyle = colors.highContrastText; // Fix contrast
         
         const caText = Math.round(ca).toLocaleString("fr-FR") + " €";
         const centerX = (left + right) / 2;
@@ -980,7 +983,7 @@ function getMicroChart1Config(data) {
         // Subtitle "CA" (reduced further by 25%)
         const fontSize2 = (height / 260).toFixed(2);  // Was 200, now 260 (25% reduction)
         ctx.font = fontSize2 + "em sans-serif";
-        ctx.fillStyle = colors.gridLight;
+        ctx.fillStyle = colors.text; // Fix contrast: was gridLight (too faint)
         ctx.fillText("Chiffre d'Affaires", centerX, centerY + 18);
         
         ctx.restore();
@@ -1276,8 +1279,18 @@ function getSalarieChart3Config(data) {
   };
 }
 
+// Track theme to force recreation on change
+let lastTheme = null;
+
 // Main update function with option to force recreation
 export function updateCharts(mode, data, forceRecreate = false) {
+  // Check if theme changed since last update
+  const currentTheme = document.documentElement.getAttribute('data-theme');
+  if (lastTheme !== null && lastTheme !== currentTheme) {
+    forceRecreate = true;
+  }
+  lastTheme = currentTheme;
+
   switch(mode) {
     case "tns":
       createOrUpdateChart("chartTns1", getTnsChart1Config(data), forceRecreate);
@@ -1334,9 +1347,13 @@ function setupChartPagination() {
     if (charts.length <= 1) return; // No pagination needed for 1 or 0 charts
     
     // Create dots
+    const scrollLeft = container.scrollLeft;
+    const width = container.offsetWidth;
+    const currentIndex = width > 0 ? Math.round(scrollLeft / width) : 0;
+
     charts.forEach((_, index) => {
       const dot = document.createElement('div');
-      dot.className = `chart-dot ${index === 0 ? 'active' : ''}`;
+      dot.className = `chart-dot ${index === currentIndex ? 'active' : ''}`;
       dot.onclick = () => {
         charts[index].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
       };

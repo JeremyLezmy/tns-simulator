@@ -15,7 +15,7 @@ import { handleSasuIrCalculation, resetSasuIr } from "./controllers/sasuIRContro
 import { handleSisuCalculation, resetSisu, updateSisuHelper, toggleSisuView } from "./controllers/sasuISController.js";
 import { handleMicroCalculation, resetMicro } from "./controllers/microController.js";
 import { handleSalarieCalculation, resetSalarie, updateSalaireHelper } from "./controllers/salarieController.js";
-import { handleIrCalculation, syncIrInputs } from "./controllers/irController.js";
+import { handleIrCalculation, syncIrInputs, updateIrColumnsVisibility } from "./controllers/irController.js";
 import { handleProjection } from "./controllers/projectionController.js";
 import { appState } from "./state.js";
 import { updateCharts } from "./ui/charts.js";
@@ -41,7 +41,7 @@ const MODE_INPUTS = {
   salarie: ["salaireBrut", "salaireMode", "salaireGrow", "variablePct", "variableFixe", "statutSal"],
 };
 
-const IR_INPUTS = ["rSal", "rBnc", "rDivIR", "chargesDeduct"];
+const IR_INPUTS = []; // Obsolete with dual columns
 const PROJECTION_SCOPES = ["foyer", "d1", "d2"];
 function initHelpPopups() {
   // 1. Process raw .hint elements (auto-wrap)
@@ -126,7 +126,7 @@ function snapshotActiveDeclarant() {
   const mode = document.getElementById("modeSel")?.value || "tns";
   dec.mode = mode;
   dec.inputs[mode] = captureInputs(MODE_INPUTS[mode]);
-  dec.inputs.ir = captureInputs(IR_INPUTS);
+  // dec.inputs.ir = captureInputs(IR_INPUTS); // No longer needed with dual columns
 
   dec.computed.tns = JSON.parse(JSON.stringify(appState.tns));
   dec.computed.sasuIr = JSON.parse(JSON.stringify(appState.sasuIr));
@@ -147,7 +147,7 @@ function restoreDeclarant(decKey) {
   }
   document.getElementById("modeSel").value = mode;
   restoreInputs(dec.inputs[mode]);
-  restoreInputs(dec.inputs.ir);
+  // restoreInputs(dec.inputs.ir); // No longer needed with dual columns
 
   // Restore computed states so IR/déductions peuvent se baser dessus immédiatement
   appState.tns = { ...appState.tns, ...dec.computed.tns };
@@ -222,6 +222,7 @@ function updateHouseholdParts() {
     }
   }
 
+  updateIrColumnsVisibility();
   handleIrCalculation(true);
 }
 
@@ -420,7 +421,11 @@ function setupEventListeners() {
   document.getElementById("salaireMode")?.addEventListener("change", updateSalaireHelper);
 
   // IR Controls
-  const irInputs = ["rSal", "rBnc", "rDivIR", "chargesDeduct", "deductCsg"];
+  const irInputs = [
+    "d1_rSal", "d1_rBnc", "d1_rDivIR", "d1_chargesDeduct", 
+    "d2_rSal", "d2_rBnc", "d2_rDivIR", "d2_chargesDeduct",
+    "deductCsg"
+  ];
   irInputs.forEach((id) => {
     document.getElementById(id)?.addEventListener("input", () => handleIrCalculation(true));
   });
@@ -444,9 +449,16 @@ document.addEventListener("DOMContentLoaded", () => {
   setupEventListeners();
 
   updateHouseholdParts();
+  updateIrColumnsVisibility();
 
   // Run initial calculations
-  updateAllCalculations();
+  try {
+    console.log("Starting initial calculations...");
+    updateAllCalculations();
+    console.log("Initial calculations completed.");
+  } catch (e) {
+    console.error("Error during initial calculations:", e);
+  }
 });
 
 // Expose toggle function for TNS charts

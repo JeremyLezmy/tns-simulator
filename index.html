@@ -121,6 +121,8 @@
           <div><label for="chargesPct">Charges externes (% du CA)</label><input id="chargesPct" type="number" value="3" /></div>
 
           <div><label for="chargesFixes">Autres charges fixes (€/an, année 1)</label><input id="chargesFixes" type="number" value="0" /></div>
+          
+          <div><label for="cfp">CFP (Formation Pro) €</label><input id="cfp" type="number" value="115" /></div>
         </div>
 
         <div class="row">
@@ -808,31 +810,36 @@
       <section class="card span-12">
         <h2>Impôt sur le revenu du foyer + Net dispo (année 1)</h2>
 
-        <div class="row">
-          <div>
-            <h3>Vos revenus à l'IR</h3>
-            <label id="lblRSal" for="rSal">Salaires imposables (après -10 %) €</label><input id="rSal" type="number" value="0" />
-            <label for="rBnc">BNC/Bénéfices transparents €</label><input id="rBnc" type="number" value="0" />
-            <div id="rBncHint" class="hint" style="display: none"></div>
-            <label for="rDivIR">Dividendes imposables au barème (après abattement 40 %) €</label><input id="rDivIR" type="number" value="0" />
-            <div class="hint">Laissez 0 si vous ne percevez ni BNC transparents ni dividendes au barème.</div>
+        <div class="row ir-columns">
+          <div class="ir-column" id="ir-col-d1" style="flex: 1; min-width: 280px;">
+            <h3>Déclarant 1</h3>
+            <label id="lblRSal_d1" for="d1_rSal">Salaires imposables (après -10 %) €</label><input id="d1_rSal" type="number" value="0" />
+            <label for="d1_rBnc">BNC/Bénéfices transparents €</label><input id="d1_rBnc" type="number" value="0" />
+            <div id="d1_rBncHint" class="hint" style="display: none"></div>
+            <label for="d1_rDivIR">Dividendes imposables au barème (après abattement 40 %) €</label><input id="d1_rDivIR" type="number" value="0" />
+            <label for="d1_chargesDeduct">Charges déductibles (PER, etc.) €</label><input id="d1_chargesDeduct" type="number" value="0" />
+            <div class="hint">Déduisez ici vos versements sur Plan Épargne Retraite (PER), pensions alimentaires, etc. Ces charges réduisent directement votre RNI.</div>
           </div>
 
-          <div>
-            <h3>Options & déductions</h3>
-            <label for="chargesDeduct">Charges déductibles du revenu global (PER, etc.) €</label
-            ><input id="chargesDeduct" type="number" value="0" />
+          <div class="ir-column" id="ir-col-d2" style="flex: 1; min-width: 280px; display: none;">
+            <h3>Déclarant 2</h3>
+            <label id="lblRSal_d2" for="d2_rSal">Salaires imposables (après -10 %) €</label><input id="d2_rSal" type="number" value="0" />
+            <label for="d2_rBnc">BNC/Bénéfices transparents €</label><input id="d2_rBnc" type="number" value="0" />
+            <div id="d2_rBncHint" class="hint" style="display: none"></div>
+            <label for="d2_rDivIR">Dividendes imposables au barème (après abattement 40 %) €</label><input id="d2_rDivIR" type="number" value="0" />
+            <label for="d2_chargesDeduct">Charges déductibles (PER, etc.) €</label><input id="d2_chargesDeduct" type="number" value="0" />
+            <div class="hint">Déduisez ici vos versements sur Plan Épargne Retraite (PER), pensions alimentaires, etc. Ces charges réduisent directement votre RNI.</div>
+          </div>
+        </div>
+        
+
+        <div class="kpi">
+          <div class="box box-with-hint">
             <div class="hint">
               Le <b>RNI</b> est la base <b>imposable</b> du foyer. Le <b>Net foyer</b> = encaissements (déclarants actifs) − IR. Ils diffèrent car le
               <b>Net</b> est une logique <b>cash</b>, alors que le <b>RNI</b> suit la logique <b>fiscale</b>.
             </div>
-          </div>
-        </div>
-
-        <div class="kpi">
-          <div class="box">
             <div class="label">RNI du foyer</div>
-
             <div class="value" id="rniFoyer">–</div>
           </div>
 
@@ -897,12 +904,18 @@
           </table>
         </div>
 
-        <!-- New KPI for Net Avant Impots -->
-        <div class="kpi" style="margin-top: 16px; justify-content: flex-start; gap: 24px; ">
-          <div class="kpi-item" style="background: var(--soft); padding: 10px 16px; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 2px 8px var(--shadow);">
-            <div class="label" style="color: var(--accent); font-weight: 600;">Revenus Net avant Impôts</div>
-            <div class="value" id="netAvantIrFoyer" style="font-size: 24px; color: var(--text);">0 €</div>
-            <div class="sub" id="netAvantIrFoyerSub"></div>
+        <!-- New KPI for Net Avant Impots & Bridge Chart -->
+        <div class="ir-bridge-container">
+          <!-- Left: KPI Box -->
+          <div class="ir-kpi-box">
+            <div style="color: var(--accent); font-weight: 600; font-size: 13px; margin-bottom: 6px;">Revenus Net avant Impôts</div>
+            <div id="netAvantIrFoyer" style="font-size: 28px; color: var(--text); font-weight: 700; line-height: 1.2;">0 €</div>
+            <div id="netAvantIrFoyerSub" style="margin-top: 4px; color: var(--muted); font-size: 11px;"></div>
+          </div>
+
+          <!-- Right: Bridge Chart -->
+          <div class="ir-chart-box">
+            <canvas id="chartIrBridge"></canvas>
           </div>
         </div>
 

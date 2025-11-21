@@ -107,3 +107,65 @@
 .compact .box .value {
   font-size: 16px;
 }
+
+/* Box with hint icon in corner */
+.box-with-hint {
+  position: relative;
+}
+.box-with-hint .help-container {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  margin: 0;
+}
+
+/* IR Bridge Container */
+.ir-bridge-container {
+  display: flex;
+  gap: 20px;
+  margin-top: 24px;
+  align-items: center; /* Vertical centering on desktop */
+  flex-wrap: wrap;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.ir-kpi-box {
+  background: var(--soft);
+  padding: 16px 20px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 8px var(--shadow);
+  min-width: 220px;
+  max-width: 280px;
+  flex: 0 1 auto;
+}
+
+.ir-chart-box {
+  flex: 1 1 300px;
+  max-width: 100%;
+  background: var(--soft);
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 8px var(--shadow);
+  min-height: 280px;
+  position: relative;
+}
+
+@media (max-width: 840px) {
+  .ir-bridge-container {
+    flex-direction: column;
+    align-items: center; /* Horizontal centering on mobile */
+    justify-content: center;
+  }
+  
+  .ir-kpi-box {
+    width: 100%;
+    max-width: 100%;
+  }
+  
+  .ir-chart-box {
+    width: 100%;
+  }
+}

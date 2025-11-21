@@ -1279,6 +1279,100 @@ function getSalarieChart3Config(data) {
   };
 }
 
+// ========== IR CHART ==========
+
+function getIrChartConfig(data) {
+  const colors = getChartColors();
+  // WATERFALL: Revenus (D1+D2) → Impôt → Net Dispo
+  
+  const d1 = Math.max(0, data.d1Revenue || 0);
+  const d2 = Math.max(0, data.d2Revenue || 0);
+  const totalRevenue = d1 + d2;
+  const ir = Math.max(0, data.totalIR || 0);
+  const net = Math.max(0, data.netFoyer || 0);
+  const tmi = data.tmi || 0;
+
+  // Calculate average tax rate
+  const avgTaxRate = totalRevenue > 0 ? (ir / totalRevenue) * 100 : 0;
+  
+  // Calculate waterfall steps (floating bars)
+  const step1_end = totalRevenue;
+  const step2_start = step1_end - ir;
+  const step3_end = net;
+  
+  return {
+    type: 'bar',
+    data: {
+      labels: ['Revenus', 'Impôt', 'Net Dispo'],
+      datasets: [{
+        data: [
+          [0, totalRevenue],           // Revenus (base)
+          [step2_start, step1_end],    // Impôt (drop)
+          [0, net]                      // Net Dispo (final)
+        ],
+        backgroundColor: [
+          colors.revenue,
+          colors.expense,
+          colors.net
+        ],
+      }]
+    },
+    options: {
+      ...getCommonOptions(colors, 'Recomposition du Revenu Foyer'),
+      plugins: {
+        ...getCommonOptions(colors, 'Recomposition du Revenu Foyer').plugins,
+        legend: {
+          display: false
+        },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const raw = ctx.raw;
+              let value = 0;
+              if (Array.isArray(raw)) {
+                value = raw[1] - raw[0];
+              } else {
+                value = raw;
+              }
+              
+              const lines = [];
+              lines.push(`${ctx.label}: ${Math.round(value).toLocaleString('fr-FR')} €`);
+              
+              // Add pedagogical explanation for tax bar
+              if (ctx.dataIndex === 1 && totalRevenue > 0) {
+                lines.push('');
+                lines.push(`💡 Votre dernière tranche est taxée à ${(tmi * 100).toFixed(0)}% (TMI),`);
+                lines.push(`mais grâce aux tranches inférieures (0% et 11%),`);
+                lines.push(`votre pression fiscale réelle n'est que de ${avgTaxRate.toFixed(1)}%.`);
+              }
+              
+              return lines;
+            }
+          }
+        },
+        datalabels: {
+          display: true,
+          color: 'white',
+          font: { weight: 'bold', size: 12 },
+          formatter: (value) => {
+            let val = 0;
+            if (Array.isArray(value)) {
+               val = value[1] - value[0];
+            } else {
+               val = value;
+            }
+            if (Math.abs(val) < 1000) return "";
+            return Math.round(val/1000) + " k€";
+          },
+          anchor: 'center',
+          align: 'center'
+        }
+      }
+    },
+    plugins: [ChartDataLabels]
+  };
+}
+
 // Track theme to force recreation on change
 let lastTheme = null;
 
@@ -1316,6 +1410,9 @@ export function updateCharts(mode, data, forceRecreate = false) {
       createOrUpdateChart("chartSalarie1", getSalarieChart1Config(data), forceRecreate);
       createOrUpdateChart("chartSalarie2", getSalarieChart2Config(data), forceRecreate);
       createOrUpdateChart("chartSalarie3", getSalarieChart3Config(data), forceRecreate);
+      break;
+    case "ir":
+      createOrUpdateChart("chartIrBridge", getIrChartConfig(data), forceRecreate);
       break;
     default:
       console.warn(`Unknown chart mode: ${mode}`);

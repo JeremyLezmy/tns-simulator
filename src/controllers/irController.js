@@ -9,8 +9,9 @@ import { calculateHouseholdIr } from "../models/ir.js";
 import { appState } from "../state.js";
 import { handleProjection } from "./projectionController.js";
 import { getAbatementRate } from "../models/micro.js";
+import { updateCharts } from "../ui/charts.js";
 
-function updateIrUI(RNI, totalIR, tmi, irResult, netFoyer, netAvantIr) {
+function updateIrUI(RNI, totalIR, tmi, irResult, netFoyer, netAvantIr, d1Revenue = 0, d2Revenue = 0) {
   safeSetText("rniFoyer", fmtEUR(RNI));
   safeSetText("irOut", fmtEUR(totalIR));
   safeSetText("tmiOut", fmtPct(tmi));
@@ -36,6 +37,17 @@ function updateIrUI(RNI, totalIR, tmi, irResult, netFoyer, netAvantIr) {
   safeSetText("sumTaxPart", fmtEUR(irResult.tax));
   safeSetText("sumBaseFoyer", fmtEUR(irResult.taxedBase * parts));
   safeSetText("sumTaxFoyer", fmtEUR(totalIR));
+
+  // Update IR Bridge Chart using standard architecture
+  updateCharts("ir", {
+    d1Revenue,
+    d2Revenue,
+    totalIR,
+    netFoyer,
+    netAvantIr,
+    tmi,
+    RNI
+  });
 }
 
 function updateDeductCsgControl(mode) {
@@ -64,7 +76,8 @@ function updateDeductCsgControl(mode) {
 }
 
 function updateMainBncHint(mode) {
-  const hintEl = document.getElementById("rBncHint");
+  const activeKey = appState.activeDeclarant || "d1";
+  const hintEl = document.getElementById(activeKey + "_rBncHint");
   if (!hintEl) return;
 
   if (mode !== "micro") {
@@ -86,16 +99,38 @@ function updateMainBncHint(mode) {
   )} – abattement ${fmtEUR(abatementAmount)} = ${fmtEUR(baseImposable)}).`;
 }
 
+export function updateIrColumnsVisibility() {
+  const isCouple = appState.household.status !== "single";
+  const colD2 = document.getElementById("ir-col-d2");
+  if (colD2) {
+    if (isCouple) {
+      colD2.classList.remove("disabled-column");
+      colD2.querySelectorAll("input").forEach(el => el.disabled = false);
+    } else {
+      colD2.classList.add("disabled-column");
+      colD2.querySelectorAll("input").forEach(el => el.disabled = true);
+    }
+    // Always show it now, just disabled state changes
+    colD2.style.display = "block";
+  }
+}
+
 export function handleIrCalculation(triggerProjection = false) {
-  // Met à jour l'IR saisi du déclarant actif
-  const activeKey = appState.activeDeclarant || "d1";
-  const activeDec = appState.declarants[activeKey];
-  if (activeDec) {
-    activeDec.inputs.ir = {
-      rSal: val("rSal"),
-      rBnc: val("rBnc"),
-      rDivIR: val("rDivIR"),
-      chargesDeduct: val("chargesDeduct"),
+  // Met à jour l'IR saisi des déclarants
+  if (appState.declarants.d1) {
+    appState.declarants.d1.inputs.ir = {
+      rSal: val("d1_rSal"),
+      rBnc: val("d1_rBnc"),
+      rDivIR: val("d1_rDivIR"),
+      chargesDeduct: val("d1_chargesDeduct"),
+    };
+  }
+  if (appState.declarants.d2) {
+    appState.declarants.d2.inputs.ir = {
+      rSal: val("d2_rSal"),
+      rBnc: val("d2_rBnc"),
+      rDivIR: val("d2_rDivIR"),
+      chargesDeduct: val("d2_chargesDeduct"),
     };
   }
 
@@ -104,13 +139,18 @@ export function handleIrCalculation(triggerProjection = false) {
   updateDeductCsgControl(mode);
 
   updateMainBncHint(mode);
-
+  
+  const activeKey = appState.activeDeclarant || "d1";
   const decList = appState.household.status === "single" ? ["d1"] : ["d1", "d2"];
   let rSalTot = 0,
     rBncTot = 0,
     rDivTot = 0,
     dedTotal = 0,
     encaissementsFoyer = 0;
+
+  // Track individual declarant revenues for chart
+  let d1Revenue = 0;
+  let d2Revenue = 0;
 
   decList.forEach((key) => {
     const dec = appState.declarants[key];
@@ -139,27 +179,32 @@ export function handleIrCalculation(triggerProjection = false) {
     const dedCsg = dedCsgFlag === "1" && dec.computed?.tns?.A > 0 ? 0.068 * dec.computed.tns.A : 0;
     dedTotal += dedCsg + chargesDeduct;
 
+    let decRevenue = 0;
     switch (dec.mode) {
       case "tns":
-        encaissementsFoyer += dec.computed?.tns?.R || 0;
+        decRevenue = dec.computed?.tns?.R || 0;
         break;
       case "sasuIR":
-        encaissementsFoyer += dec.computed?.sasuIr?.encaissements || 0;
+        decRevenue = dec.computed?.sasuIr?.encaissements || 0;
         break;
       case "sasuIS":
-        encaissementsFoyer += dec.computed?.sasuIs?.encaissements || 0;
+        decRevenue = dec.computed?.sasuIs?.encaissements || 0;
         break;
       case "micro":
-        encaissementsFoyer += dec.computed?.micro?.remuneration || 0;
+        decRevenue = dec.computed?.micro?.remuneration || 0;
         break;
       case "salarie":
-        encaissementsFoyer += dec.computed?.salarie?.netAvantIR || 0;
+        decRevenue = dec.computed?.salarie?.netAvantIR || 0;
         break;
       default:
         break;
     }
 
-    encaissementsFoyer -= chargesDeduct;
+    decRevenue -= chargesDeduct;
+    encaissementsFoyer += decRevenue;
+
+    if (key === "d1") d1Revenue = decRevenue;
+    else if (key === "d2") d2Revenue = decRevenue;
   });
 
   const { RNI, totalIR, tmi, irResult } = calculateHouseholdIr(rSalTot, rBncTot, rDivTot, 0, dedTotal, parts, 0);
@@ -170,7 +215,7 @@ export function handleIrCalculation(triggerProjection = false) {
   appState.ir = { RNI, IR: totalIR, net: netFoyer, tmi };
 
   // Update UI
-  updateIrUI(RNI, totalIR, tmi, irResult, netFoyer, encaissementsFoyer);
+  updateIrUI(RNI, totalIR, tmi, irResult, netFoyer, encaissementsFoyer, d1Revenue, d2Revenue);
 
   logIR(`IR Calc: RNI=${RNI.toFixed(0)}, IR=${totalIR.toFixed(0)}, Net=${netFoyer.toFixed(0)}`);
 
@@ -180,6 +225,7 @@ export function handleIrCalculation(triggerProjection = false) {
 }
 
 export function syncIrInputs() {
+  console.log("syncIrInputs called");
   const mode = document.getElementById("modeSel").value;
   let rSal = 0,
     rBnc = 0,
@@ -201,12 +247,18 @@ export function syncIrInputs() {
       rBnc = appState.micro.baseImposable;
       break;
     case "salarie":
-      rSal = appState.salarie.brutTotal * 0.9;
+      // Fix: Use Net Imposable approximation instead of Brut
+      // Net Imposable approx = NetAvantIR + CSG Non Deductible (2.9% of 98.25% of Brut)
+      const csgNonDed = appState.salarie.brutTotal * 0.9825 * 0.029;
+      rSal = (appState.salarie.netAvantIR + csgNonDed) * 0.9;
       break;
   }
 
-  // Update label based on mode
-  const lbl = document.getElementById("lblRSal");
+  // Update label based on mode for active declarant
+  const activeKey = appState.activeDeclarant || "d1";
+  const prefix = activeKey + "_";
+  
+  const lbl = document.getElementById("lblRSal_" + activeKey);
   if (lbl) {
     if (mode === "sasuIR") {
       lbl.textContent = "Salaires imposables (pas d'abattement 10%) €";
@@ -215,13 +267,19 @@ export function syncIrInputs() {
     }
   }
 
-  document.getElementById("rSal").value = Math.round(rSal);
-  document.getElementById("rBnc").value = Math.round(rBnc);
-  document.getElementById("rDivIR").value = Math.round(rDivIR);
-  const dec = appState.declarants[appState.activeDeclarant];
+  const elSal = document.getElementById(prefix + "rSal");
+  const elBnc = document.getElementById(prefix + "rBnc");
+  const elDiv = document.getElementById(prefix + "rDivIR");
+  
+  if (elSal) elSal.value = Math.round(rSal);
+  if (elBnc) elBnc.value = Math.round(rBnc);
+  if (elDiv) elDiv.value = Math.round(rDivIR);
+
+  const dec = appState.declarants[activeKey];
   if (dec?.inputs?.ir) {
     const charges = Number(dec.inputs.ir.chargesDeduct) || 0;
-    document.getElementById("chargesDeduct").value = Math.round(charges);
+    const elCharges = document.getElementById(prefix + "chargesDeduct");
+    if (elCharges) elCharges.value = Math.round(charges);
   }
   const tnsInputs = dec?.inputs?.tns;
   if (tnsInputs && typeof tnsInputs.deductCsg !== "undefined") {

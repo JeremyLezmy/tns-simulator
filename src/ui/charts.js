@@ -575,54 +575,81 @@ function getSasuIRChart2Config(data) {
 function getSasuIsChart1Config(data) {
   console.log('[Chart Debug] getSasuIsChart1Config called with data:', data);
   const colors = getChartColors();
-  // WATERFALL: Marge -> Coût Salaire -> IS -> Flat Tax -> Net Dirigeant
-  // Using floating bars [min, max] to create a true waterfall effect without negative bars
+  // WATERFALL: Marge -> Charges -> IS -> Flat Tax -> Net (Split into Salary & Dividends)
   
   const marge = Math.round(data.marge || (data.superBrut + data.is + data.divBrut)); 
-  const coutSal = Math.round(data.superBrut);
+  const chargesSal = Math.round(data.charges || 0);
   const is = Math.round(data.is);
   const flatTax = Math.round(data.flatTax);
-  const net = Math.round(data.net);
+  const remNet = Math.round(data.remNet || 0);
+  const divNet = Math.round(data.divNet || 0);
   
   // Calculate steps
-  // Step 1: Marge (Starts at 0, ends at Marge)
-  // Step 2: Coût Salaire (Starts at Marge - Coût, ends at Marge)
-  // Step 3: IS (Starts at Marge - Coût - IS, ends at Marge - Coût)
-  // Step 4: Flat Tax (Starts at Net, ends at Net + Flat Tax) -> Wait, Net + Flat Tax = Marge - Coût - IS
-  // Step 5: Net (Starts at 0, ends at Net)
-  
   const step1_end = marge;
-  const step2_start = step1_end - coutSal;
+  const step2_start = step1_end - chargesSal;
   const step3_start = step2_start - is;
-  const step4_start = step3_start - flatTax; // Should equal net
+  const step4_start = step3_start - flatTax; 
   
   return {
     type: "bar",
     data: {
-      labels: ["Marge Disponible", "Coût Salaire", "Impôt Société", "Flat Tax / PFU", "Net Dirigeant"],
-      datasets: [{
-        data: [
-          [0, marge],           // Marge
-          [step2_start, step1_end], // Coût Salaire (Drop)
-          [step3_start, step2_start], // IS (Drop)
-          [step4_start, step3_start], // Flat Tax (Drop)
-          [0, step4_start]      // Net (should connect to previous bar)
-        ],
-        backgroundColor: [
-          colors.grid,   // Marge (Grey)
-          colors.social, // Coût Salaire (Purple)
-          colors.tax,    // IS (Red)
-          "#f43f5e",     // Flat Tax (Coral)
-          "#10b981"      // Net (Green)
-        ],
-      }]
+      labels: ["Marge Disponible", "Charges Sur Salaire", "Impôt Société", "Flat Tax / PFU", "Net Dirigeant"],
+      datasets: [
+        {
+          label: "Flux",
+          data: [
+            [0, marge],               // Marge
+            [step2_start, step1_end], // Charges
+            [step3_start, step2_start], // IS
+            [step4_start, step3_start], // Flat Tax
+            null                      // Net (Handled by stacked datasets)
+          ],
+          backgroundColor: [
+            colors.grid,
+            colors.social,
+            colors.tax,
+            "#f43f5e",
+            "transparent"
+          ],
+          stack: 'stack1'
+        },
+        {
+          label: "Salaire Net",
+          data: [null, null, null, null, remNet],
+          backgroundColor: "#10b981", // Green
+          stack: 'stack1'
+        },
+        {
+          label: "Dividendes Nets",
+          data: [null, null, null, null, divNet],
+          backgroundColor: "#34d399", // Lighter Green
+          stack: 'stack1'
+        }
+      ]
     },
     options: {
       ...getCommonOptions(colors, "Double Détente Fiscale (Cascade)"),
+      scales: {
+        x: {
+          stacked: true,
+          grid: { display: false },
+          ticks: { color: colors.text }
+        },
+        y: {
+          stacked: true,
+          grid: { color: colors.gridLight },
+          ticks: { color: colors.text, callback: (v) => v + ' €' }
+        }
+      },
       plugins: {
         ...getCommonOptions(colors, "Double Détente Fiscale (Cascade)").plugins,
         legend: {
-          display: false
+          display: false,
+          position: 'bottom',
+          labels: {
+            filter: (item) => item.text !== 'Flux',
+            color: colors.text
+          }
         },
         tooltip: {
           callbacks: {
@@ -634,7 +661,8 @@ function getSasuIsChart1Config(data) {
               } else {
                 value = raw;
               }
-              return `${context.label}: ${Math.round(value).toLocaleString("fr-FR")} €`;
+              if (value === null || isNaN(value)) return null;
+              return `${context.dataset.label || context.label}: ${Math.round(value).toLocaleString("fr-FR")} €`;
             }
           }
         },
@@ -649,7 +677,7 @@ function getSasuIsChart1Config(data) {
             } else {
                val = value;
             }
-            if (Math.abs(val) < 1000) return "";
+            if (!val || Math.abs(val) < 1000) return "";
             return Math.round(val/1000) + " k€";
           },
           anchor: 'center',
@@ -1075,9 +1103,9 @@ function getSalarieChart1Config(data) {
       }]
     },
     options: {
-      ...getCommonOptions(colors, "Cascade du Super Brut au Net"),
+      ...getCommonOptions(colors, "Waterfall du Super Brut au Net"),
       plugins: {
-        ...getCommonOptions(colors, "Cascade du Super Brut au Net").plugins,
+        ...getCommonOptions(colors, "Waterfall du Super Brut au Net").plugins,
         legend: {
           display: false
         },

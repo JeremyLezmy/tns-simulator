@@ -6,6 +6,29 @@
 
 // Store chart instances
 const chartInstances = {};
+const chartInitAttempts = {};
+
+// Some mobile browsers auto-load chartjs-plugin-annotation through extensions/caching.
+// If present, it can crash during the initial resize when chartArea isn't ready.
+function disableAnnotationPlugin() {
+  if (typeof Chart === "undefined") return;
+  // Try to locate the plugin regardless of Chart.js version shape
+  const registry = Chart.registry?.plugins;
+  const pluginFromRegistry = registry?.get?.("annotation") || registry?.plugins?.find?.((p) => p?.id === "annotation");
+  const pluginFromGlobal = Chart?.plugins?.getAll?.()?.find?.((p) => p?.id === "annotation");
+  const annotationPlugin = pluginFromRegistry || pluginFromGlobal;
+
+  if (annotationPlugin) {
+    try {
+      Chart.unregister(annotationPlugin);
+      console.warn("[charts] Disabled chartjs-plugin-annotation to prevent mobile crash.");
+    } catch (err) {
+      console.warn("[charts] Failed to unregister annotation plugin (non-blocking)", err);
+    }
+  }
+}
+
+disableAnnotationPlugin();
 
 // Professional color palette (inspired by financial dashboards)
 function getChartColors() {
@@ -71,11 +94,16 @@ function getCommonOptions(colors, title) {
       easing: 'easeInOutQuart'
     },
     // Explicitly define events to ensure mobile touch is captured
-    events: ['mousemove', 'mouseout', 'click', 'touchstart', 'touchmove'],
+    events: [
+      'mousemove', 'mouseout', 'click',
+      'touchstart', 'touchmove', 'touchend',
+      'pointerdown', 'pointermove', 'pointerup'
+    ],
     interaction: {
       mode: 'nearest',
       axis: 'xy',
-      intersect: true // Require touching the element, but 'nearest' helps
+      // Allow a bit of tolerance on touch screens; "nearest" will pick the closest element
+      intersect: false
     },
     plugins: {
       datalabels: {
@@ -145,37 +173,63 @@ function destroyCharts(mode) {
 
 // Create or update a chart
 function createOrUpdateChart(canvasId, config, forceRecreate = false) {
+  if (typeof Chart === "undefined") return null;
   const canvas = document.getElementById(canvasId);
   if (!canvas) return null;
 
-  // Check if Chart.js has an existing chart on this canvas (using Chart.js internal registry)
-  const existingChart = Chart.getChart(canvas);
-  
-  // If there's an existing chart and we're forcing recreation, destroy it
-  if (existingChart && forceRecreate) {
-    existingChart.destroy();
-    delete chartInstances[canvasId];
-  }
-  // If there's an existing chart but we're not forcing recreation, update it
-  else if (existingChart && !forceRecreate) {
-    existingChart.data = config.data;
-    existingChart.options = config.options;
-    existingChart.update();
-    chartInstances[canvasId] = existingChart; // Ensure our tracker is in sync
-    return existingChart;
-  }
-  // If there's an existing chart in Chart.js but not in our tracker, destroy it
-  else if (existingChart) {
-    existingChart.destroy();
-    delete chartInstances[canvasId];
+  const attempts = chartInitAttempts[canvasId] || 0;
+  const width = canvas.offsetWidth || canvas.parentElement?.offsetWidth || canvas.width || 0;
+  const height = canvas.offsetHeight || canvas.parentElement?.offsetHeight || canvas.height || 0;
+
+  // Skip initialization when the canvas is hidden (width/height 0), and retry once visible
+  if (width === 0 || height === 0) {
+    if (attempts < 3) {
+      chartInitAttempts[canvasId] = attempts + 1;
+      requestAnimationFrame(() => createOrUpdateChart(canvasId, config, forceRecreate));
+    }
+    return null;
   }
 
-  // Create new chart (first time or after destroy)
-  const ctx = canvas.getContext("2d");
-  const newChart = new Chart(ctx, config);
-  chartInstances[canvasId] = newChart;
-  
-  return newChart;
+  try {
+    // Check if Chart.js has an existing chart on this canvas (using Chart.js internal registry)
+    const existingChart = Chart.getChart(canvas);
+    
+    // If there's an existing chart and we're forcing recreation, destroy it
+    if (existingChart && forceRecreate) {
+      existingChart.destroy();
+      delete chartInstances[canvasId];
+    }
+    // If there's an existing chart but we're not forcing recreation, update it
+    else if (existingChart && !forceRecreate) {
+      existingChart.data = config.data;
+      existingChart.options = config.options;
+      existingChart.update();
+      chartInstances[canvasId] = existingChart; // Ensure our tracker is in sync
+      chartInitAttempts[canvasId] = 0;
+      return existingChart;
+    }
+    // If there's an existing chart in Chart.js but not in our tracker, destroy it
+    else if (existingChart) {
+      existingChart.destroy();
+      delete chartInstances[canvasId];
+    }
+
+    // Create new chart (first time or after destroy)
+    const ctx = canvas.getContext("2d");
+    const newChart = new Chart(ctx, config);
+    chartInstances[canvasId] = newChart;
+    chartInitAttempts[canvasId] = 0;
+    
+    return newChart;
+  } catch (err) {
+    console.error(`[charts] Failed to render ${canvasId}`, err);
+    disableAnnotationPlugin();
+    if (attempts < 3) {
+      chartInitAttempts[canvasId] = attempts + 1;
+      setTimeout(() => createOrUpdateChart(canvasId, config, true), 120);
+    }
+    return null;
+  }
 }
 
 // ========== TNS CHARTS ==========
@@ -496,7 +550,10 @@ function getSasuIRChart1Config(data) {
     plugins: [{
       id: 'centerText',
       beforeDraw: function(chart) {
-        const { ctx, chartArea: { top, bottom, left, right, width, height } } = chart;
+        const chartArea = chart.chartArea;
+        if (!chartArea) return;
+        const { ctx } = chart;
+        const { top, bottom, left, right, width, height } = chartArea;
         
         ctx.save();
         const fontSize = (height / 114).toFixed(2);
@@ -767,7 +824,10 @@ function getSasuIsChart2Config(data) {
     plugins: [{
       id: 'centerText2',
       beforeDraw: function(chart) {
-        const { ctx, chartArea: { top, bottom, left, right, width, height } } = chart;
+        const chartArea = chart.chartArea;
+        if (!chartArea) return;
+        const { ctx } = chart;
+        const { top, bottom, left, right, width, height } = chartArea;
         
         ctx.save();
         const fontSize = (height / 114).toFixed(2);
@@ -958,7 +1018,7 @@ function getMicroChart1Config(data) {
       },
       interaction: {
         mode: 'nearest',
-        intersect: true
+        intersect: false
       },
       plugins: {
         ...getCommonOptions(colors, "Jauge de Performance Nette").plugins,
@@ -987,7 +1047,10 @@ function getMicroChart1Config(data) {
     plugins: [{
       id: 'centerTextMicro',
       beforeDraw: function(chart) {
-        const { ctx, chartArea: { top, bottom, left, right, width, height } } = chart;
+        const chartArea = chart.chartArea;
+        if (!chartArea) return;
+        const { ctx } = chart;
+        const { top, bottom, left, right, width, height } = chartArea;
         
         ctx.save();
         // Main CA text (reduced further by 25%)

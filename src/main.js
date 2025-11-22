@@ -223,7 +223,11 @@ function updateHouseholdParts() {
   }
 
   updateIrColumnsVisibility();
-  handleIrCalculation(true);
+  try {
+    handleIrCalculation(true);
+  } catch (err) {
+    console.error("IR calculation failed", err);
+  }
 }
 
 function handleDeclarantTabClick(decKey) {

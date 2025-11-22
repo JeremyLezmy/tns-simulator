@@ -138,7 +138,7 @@ header.container {
     scroll-snap-type: x mandatory;
     scroll-behavior: smooth;
     gap: 0; /* Strict one column view */
-    padding-bottom: 10px;
+    padding-bottom: 60px; /* Espace pour le hint "Charges déductibles" qui déborde */
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     margin-right: 0;

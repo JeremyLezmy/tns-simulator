@@ -78,6 +78,12 @@ function getCommonOptions(colors, title) {
       intersect: true // Require touching the element, but 'nearest' helps
     },
     plugins: {
+      datalabels: {
+        display: function(context) {
+           // Safety check to prevent crash on mobile with empty datasets
+           return context.dataset.data && context.dataset.data.length > 0 && context.dataset.data[context.dataIndex] !== null;
+        }
+      },
       legend: {
         position: "bottom",
         labels: {

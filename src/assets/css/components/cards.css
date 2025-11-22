@@ -119,6 +119,15 @@
   margin: 0;
 }
 
+/* Prevent overflow for hints in boxes on the right side */
+.box-with-hint .help-bubble {
+  left: auto;
+  right: 0;
+  transform: none;
+  width: 250px; /* Fixed width to avoid squashing */
+  white-space: normal;
+}
+
 /* IR Bridge Container */
 .ir-bridge-container {
   display: flex;

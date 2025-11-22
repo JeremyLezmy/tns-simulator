@@ -451,14 +451,16 @@ document.addEventListener("DOMContentLoaded", () => {
   updateHouseholdParts();
   updateIrColumnsVisibility();
 
-  // Run initial calculations
-  try {
-    console.log("Starting initial calculations...");
-    updateAllCalculations();
-    console.log("Initial calculations completed.");
-  } catch (e) {
-    console.error("Error during initial calculations:", e);
-  }
+  // Run initial calculations with a small delay to ensure mobile readiness
+  setTimeout(() => {
+    try {
+      console.log("Starting initial calculations...");
+      updateAllCalculations();
+      console.log("Initial calculations completed.");
+    } catch (e) {
+      console.error("Error during initial calculations:", e);
+    }
+  }, 100);
 });
 
 // Expose toggle function for TNS charts

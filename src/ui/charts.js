@@ -937,6 +937,10 @@ function getMicroChart1Config(data) {
       layout: {
         padding: { bottom: 10 }
       },
+      interaction: {
+        mode: 'nearest',
+        intersect: true
+      },
       plugins: {
         ...getCommonOptions(colors, "Jauge de Performance Nette").plugins,
         legend: {
@@ -1341,6 +1345,21 @@ function getIrChartConfig(data) {
     },
     options: {
       ...getCommonOptions(colors, 'Recomposition du Revenu Foyer'),
+      scales: {
+        x: {
+          stacked: true,
+          grid: { display: false },
+          ticks: { color: colors.text }
+        },
+        y: {
+          stacked: true,
+          grid: { color: colors.gridLight },
+          ticks: {
+            color: colors.text,
+            callback: (value) => Math.round(value/1000) + " k€"
+          }
+        }
+      },
       plugins: {
         ...getCommonOptions(colors, 'Recomposition du Revenu Foyer').plugins,
         legend: {

@@ -905,6 +905,12 @@ function getSasuIsChart4Config(data) {
           }
         },
         datalabels: {
+          display: function(context) {
+             return context.dataset.data && 
+                    context.dataset.data.length > 0 && 
+                    context.dataset.data[context.dataIndex] !== null &&
+                    context.dataset.data[context.dataIndex] !== undefined;
+          },
           color: 'white',
           font: { size: 10, weight: 'bold' },
           formatter: (value, ctx) => {
@@ -1144,7 +1150,12 @@ function getSalarieChart1Config(data) {
           }
         },
         datalabels: {
-          display: true,
+          display: function(context) {
+             return context.dataset.data && 
+                    context.dataset.data.length > 0 && 
+                    context.dataset.data[context.dataIndex] !== null &&
+                    context.dataset.data[context.dataIndex] !== undefined;
+          },
           color: 'white',
           font: { weight: 'bold' },
           formatter: (value) => {
@@ -1221,6 +1232,12 @@ function getSalarieChart2Config(data) {
           }
         },
         datalabels: {
+          display: function(context) {
+             return context.dataset.data && 
+                    context.dataset.data.length > 0 && 
+                    context.dataset.data[context.dataIndex] !== null &&
+                    context.dataset.data[context.dataIndex] !== undefined;
+          },
           color: 'white',
           font: { weight: 'bold', size: 12 },
           formatter: (value) => {
@@ -1281,6 +1298,12 @@ function getSalarieChart3Config(data) {
           }
         },
         datalabels: {
+          display: function(context) {
+             return context.dataset.data && 
+                    context.dataset.data.length > 0 && 
+                    context.dataset.data[context.dataIndex] !== null &&
+                    context.dataset.data[context.dataIndex] !== undefined;
+          },
           color: 'white',
           font: { weight: 'bold', size: 10 },
           formatter: (value) => {
@@ -1383,6 +1406,29 @@ function getIrChartConfig(data) {
             color: colors.text
           }
         },
+        datalabels: {
+          display: function(context) {
+             // Safety check: ensure data exists and is not null
+             return context.dataset.data && 
+                    context.dataset.data.length > 0 && 
+                    context.dataset.data[context.dataIndex] !== null &&
+                    context.dataset.data[context.dataIndex] !== undefined;
+          },
+          color: 'white',
+          font: { weight: 'bold', size: 12 },
+          formatter: (value, ctx) => {
+            let val = 0;
+            if (Array.isArray(value)) {
+               val = value[1] - value[0];
+            } else {
+               val = value;
+            }
+            if (!val || Math.abs(val) < 1000) return "";
+            return Math.round(val/1000) + " k€";
+          },
+          anchor: 'center',
+          align: 'center'
+        },
         tooltip: {
           callbacks: {
             label: (ctx) => {
@@ -1409,23 +1455,6 @@ function getIrChartConfig(data) {
               return lines;
             }
           }
-        },
-        datalabels: {
-          display: true,
-          color: 'white',
-          font: { weight: 'bold', size: 12 },
-          formatter: (value, ctx) => {
-            let val = 0;
-            if (Array.isArray(value)) {
-               val = value[1] - value[0];
-            } else {
-               val = value;
-            }
-            if (!val || Math.abs(val) < 1000) return "";
-            return Math.round(val/1000) + " k€";
-          },
-          anchor: 'center',
-          align: 'center'
         }
       }
     },

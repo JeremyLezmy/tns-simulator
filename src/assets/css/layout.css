@@ -135,10 +135,11 @@ header.container {
     flex-direction: row;
     grid-template-columns: none; /* Override grid */
     overflow-x: auto;
+    overflow-y: visible; /* Let hints overlap vertically */
     scroll-snap-type: x mandatory;
     scroll-behavior: smooth;
     gap: 0; /* Strict one column view */
-    padding-bottom: 60px; /* Espace pour le hint "Charges déductibles" qui déborde */
+    padding-bottom: 0; /* Allow hints to overlap instead of reserving space */
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     margin-right: 0;
@@ -153,6 +154,29 @@ header.container {
     min-width: 100% !important;
     scroll-snap-align: center;
     flex: 0 0 100% !important;
+    overflow: visible; /* Allow hint bubbles to overflow */
+  }
+
+  /* Center the projection tabs stack like other tabs, without breaking layout */
+  .card-tabs:has(#projTabFoyer) {
+    align-items: center;
+  }
+  .card-tabs:has(#projTabFoyer) .tabs {
+    width: auto;
+    margin: 0 auto;
+    align-items: stretch;
+    min-width: 220px;
+  }
+  .card-tabs:has(#projTabFoyer) .tab {
+    width: 100%;
+  }
+
+  /* Make IR hint bubbles overlay upward on mobile to avoid scrolling inside the slider */
+  .ir-columns .help-container .help-bubble {
+    top: auto;
+    bottom: calc(100% + 8px);
+    margin-top: 0;
+    transform: translateX(-50%);
   }
 }
 @media (min-width: 1400px) {

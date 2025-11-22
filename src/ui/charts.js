@@ -1283,7 +1283,7 @@ function getSalarieChart3Config(data) {
 
 function getIrChartConfig(data) {
   const colors = getChartColors();
-  // WATERFALL: Revenus (D1+D2) → Impôt → Net Dispo
+  // WATERFALL: Revenus (Stacked D1+D2) → Impôt → Net Dispo
   
   const d1 = Math.max(0, data.d1Revenue || 0);
   const d2 = Math.max(0, data.d2Revenue || 0);
@@ -1304,25 +1304,52 @@ function getIrChartConfig(data) {
     type: 'bar',
     data: {
       labels: ['Revenus', 'Impôt', 'Net Dispo'],
-      datasets: [{
-        data: [
-          [0, totalRevenue],           // Revenus (base)
-          [step2_start, step1_end],    // Impôt (drop)
-          [0, net]                      // Net Dispo (final)
-        ],
-        backgroundColor: [
-          colors.revenue,
-          colors.expense,
-          colors.net
-        ],
-      }]
+      datasets: [
+        // Stack 1: Declarant 1 Revenue (only on first bar)
+        {
+          label: 'Déclarant 1',
+          data: [d1, null, null],
+          backgroundColor: colors.revenue,
+          stack: 'stack1',
+          order: 2
+        },
+        // Stack 1: Declarant 2 Revenue (only on first bar)
+        {
+          label: 'Déclarant 2',
+          data: [d2, null, null],
+          backgroundColor: colors.accent1, // Distinct green
+          stack: 'stack1',
+          order: 1
+        },
+        // Stack 1: Impôt (floating bar on second position)
+        {
+          label: 'Impôt',
+          data: [null, [step2_start, step1_end], null],
+          backgroundColor: colors.expense,
+          stack: 'stack1',
+          order: 3
+        },
+        // Stack 1: Net Dispo (floating bar on third position)
+        {
+          label: 'Net Dispo',
+          data: [null, null, net],
+          backgroundColor: colors.net,
+          stack: 'stack1',
+          order: 4
+        }
+      ]
     },
     options: {
       ...getCommonOptions(colors, 'Recomposition du Revenu Foyer'),
       plugins: {
         ...getCommonOptions(colors, 'Recomposition du Revenu Foyer').plugins,
         legend: {
-          display: false
+          display: true, // Show legend to distinguish D1/D2
+          position: 'bottom',
+          labels: {
+            filter: (item) => item.text === 'Déclarant 1' || item.text === 'Déclarant 2', // Only show D1/D2 in legend
+            color: colors.text
+          }
         },
         tooltip: {
           callbacks: {
@@ -1334,12 +1361,13 @@ function getIrChartConfig(data) {
               } else {
                 value = raw;
               }
+              if (value === null || isNaN(value)) return null;
               
               const lines = [];
-              lines.push(`${ctx.label}: ${Math.round(value).toLocaleString('fr-FR')} €`);
+              lines.push(`${ctx.dataset.label}: ${Math.round(value).toLocaleString('fr-FR')} €`);
               
               // Add pedagogical explanation for tax bar
-              if (ctx.dataIndex === 1 && totalRevenue > 0) {
+              if (ctx.dataset.label === 'Impôt' && totalRevenue > 0) {
                 lines.push('');
                 lines.push(`💡 Votre dernière tranche est taxée à ${(tmi * 100).toFixed(0)}% (TMI),`);
                 lines.push(`mais grâce aux tranches inférieures (0% et 11%),`);
@@ -1354,14 +1382,14 @@ function getIrChartConfig(data) {
           display: true,
           color: 'white',
           font: { weight: 'bold', size: 12 },
-          formatter: (value) => {
+          formatter: (value, ctx) => {
             let val = 0;
             if (Array.isArray(value)) {
                val = value[1] - value[0];
             } else {
                val = value;
             }
-            if (Math.abs(val) < 1000) return "";
+            if (!val || Math.abs(val) < 1000) return "";
             return Math.round(val/1000) + " k€";
           },
           anchor: 'center',
@@ -1423,11 +1451,16 @@ export function updateCharts(mode, data, forceRecreate = false) {
 }
 
 function setupChartPagination() {
-  const containers = document.querySelectorAll('.charts-container');
+  // Handle both chart containers and IR columns slider
+  const containers = document.querySelectorAll('.charts-container, .ir-columns');
   
   containers.forEach(container => {
     // Only process visible containers to avoid layout issues
     if (container.offsetParent === null) return;
+    
+    // Determine item selector based on container type
+    const isIrSlider = container.classList.contains('ir-columns');
+    const itemSelector = isIrSlider ? '.ir-column' : '.chart-wrapper';
     
     // Check if pagination already exists
     let pagination = container.nextElementSibling;
@@ -1440,34 +1473,63 @@ function setupChartPagination() {
     // Clear existing dots
     pagination.innerHTML = '';
     
-    const charts = container.querySelectorAll('.chart-wrapper');
-    if (charts.length <= 1) return; // No pagination needed for 1 or 0 charts
+    const items = container.querySelectorAll(itemSelector);
+    // Filter out hidden items (e.g. Declarant 2 if hidden)
+    const visibleItems = Array.from(items).filter(item => {
+      return window.getComputedStyle(item).display !== 'none';
+    });
+    
+    if (visibleItems.length <= 1) {
+      pagination.style.display = 'none';
+      return; 
+    } else {
+      // Restore display if it was hidden by this script
+      // Note: CSS media query handles desktop/mobile hiding
+      pagination.style.display = ''; 
+    }
     
     // Create dots
-    const scrollLeft = container.scrollLeft;
-    const width = container.offsetWidth;
-    const currentIndex = width > 0 ? Math.round(scrollLeft / width) : 0;
+    const updateActiveDot = () => {
+      const scrollLeft = container.scrollLeft;
+      const containerCenter = scrollLeft + (container.offsetWidth / 2);
+      
+      // Find item closest to center
+      let activeIndex = 0;
+      let minDistance = Infinity;
+      
+      visibleItems.forEach((item, index) => {
+        const itemCenter = item.offsetLeft + (item.offsetWidth / 2);
+        const distance = Math.abs(containerCenter - itemCenter);
+        if (distance < minDistance) {
+          minDistance = distance;
+          activeIndex = index;
+        }
+      });
+      
+      const dots = pagination.querySelectorAll('.chart-dot');
+      dots.forEach((dot, i) => {
+        if (i === activeIndex) dot.classList.add('active');
+        else dot.classList.remove('active');
+      });
+    };
 
-    charts.forEach((_, index) => {
+    visibleItems.forEach((item, index) => {
       const dot = document.createElement('div');
-      dot.className = `chart-dot ${index === currentIndex ? 'active' : ''}`;
+      dot.className = 'chart-dot';
       dot.onclick = () => {
-        charts[index].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        item.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
       };
       pagination.appendChild(dot);
     });
     
-    // Update active dot on scroll
+    // Initial update
+    updateActiveDot();
+    
+    // Update active dot on scroll with debounce
+    let timeout;
     container.onscroll = () => {
-      const scrollLeft = container.scrollLeft;
-      const width = container.offsetWidth;
-      const index = Math.round(scrollLeft / width);
-      
-      const dots = pagination.querySelectorAll('.chart-dot');
-      dots.forEach((dot, i) => {
-        if (i === index) dot.classList.add('active');
-        else dot.classList.remove('active');
-      });
+      clearTimeout(timeout);
+      timeout = setTimeout(updateActiveDot, 50);
     };
   });
 }

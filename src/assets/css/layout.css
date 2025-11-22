@@ -108,8 +108,33 @@ header.container {
     gap: 12px;
   }
   .card-tabs .muted {
-    text-align: center;
     font-size: 12px;
+  }
+
+  /* Fix for IR columns on mobile: Horizontal Slider */
+  .row.ir-columns {
+    display: flex;
+    flex-direction: row;
+    grid-template-columns: none; /* Override grid */
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    gap: 0; /* Strict one column view */
+    padding-bottom: 10px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    margin-right: 0;
+    padding-right: 0;
+  }
+  
+  .row.ir-columns::-webkit-scrollbar {
+    display: none;
+  }
+
+  .row.ir-columns > .ir-column {
+    min-width: 100% !important;
+    scroll-snap-align: center;
+    flex: 0 0 100% !important;
   }
 }
 @media (min-width: 1400px) {

@@ -70,6 +70,13 @@ function getCommonOptions(colors, title) {
       duration: 1000,
       easing: 'easeInOutQuart'
     },
+    // Explicitly define events to ensure mobile touch is captured
+    events: ['mousemove', 'mouseout', 'click', 'touchstart', 'touchmove'],
+    interaction: {
+      mode: 'nearest',
+      axis: 'xy',
+      intersect: true // Require touching the element, but 'nearest' helps
+    },
     plugins: {
       legend: {
         position: "bottom",

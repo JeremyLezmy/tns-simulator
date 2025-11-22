@@ -451,16 +451,26 @@ document.addEventListener("DOMContentLoaded", () => {
   updateHouseholdParts();
   updateIrColumnsVisibility();
 
-  // Run initial calculations with a small delay to ensure mobile readiness
+  // Run initial calculations with a delay to ensure mobile readiness
+  // 100ms was too short for some Android devices
   setTimeout(() => {
     try {
-      console.log("Starting initial calculations...");
+      console.log("Starting initial calculations (500ms)...");
       updateAllCalculations();
-      console.log("Initial calculations completed.");
     } catch (e) {
-      console.error("Error during initial calculations:", e);
+      console.error("Error during initial calculations (500ms):", e);
     }
-  }, 100);
+  }, 500);
+
+  // Fallback safety check at 1.5s
+  setTimeout(() => {
+    try {
+      console.log("Safety check calculation (1500ms)...");
+      updateAllCalculations();
+    } catch (e) {
+      console.error("Error during safety calculation:", e);
+    }
+  }, 1500);
 });
 
 // Expose toggle function for TNS charts

@@ -1473,9 +1473,8 @@ function getIrChartConfig(data) {
             color: colors.text
           }
         },
-        datalabels: {
-          display: false
-        },
+        // Disable datalabels entirely on this chart (floating bars crash on mobile)
+        datalabels: false,
         tooltip: {
           callbacks: {
             label: (ctx) => {
@@ -1505,7 +1504,8 @@ function getIrChartConfig(data) {
         }
       }
     },
-    plugins: [] // Disable datalabels to avoid crashes on mobile waterfall
+    // Do NOT attach ChartDataLabels plugin here to avoid mobile crash
+    plugins: []
   };
 }
 

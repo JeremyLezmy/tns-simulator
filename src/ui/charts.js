@@ -102,8 +102,7 @@ function getCommonOptions(colors, title) {
     interaction: {
       mode: 'nearest',
       axis: 'xy',
-      // Allow a bit of tolerance on touch screens; "nearest" will pick the closest element
-      intersect: false
+      intersect: true // Require touching the element to avoid oversized hover zones
     },
     plugins: {
       datalabels: {
@@ -1018,7 +1017,7 @@ function getMicroChart1Config(data) {
       },
       interaction: {
         mode: 'nearest',
-        intersect: false
+        intersect: true
       },
       plugins: {
         ...getCommonOptions(colors, "Jauge de Performance Nette").plugins,
@@ -1444,6 +1443,11 @@ function getIrChartConfig(data) {
     },
     options: {
       ...getCommonOptions(colors, 'Recomposition du Revenu Foyer'),
+      interaction: {
+        mode: 'nearest',
+        axis: 'xy',
+        intersect: true
+      },
       scales: {
         x: {
           stacked: true,
@@ -1470,27 +1474,7 @@ function getIrChartConfig(data) {
           }
         },
         datalabels: {
-          display: function(context) {
-             // Safety check: ensure data exists and is not null
-             return context.dataset.data && 
-                    context.dataset.data.length > 0 && 
-                    context.dataset.data[context.dataIndex] !== null &&
-                    context.dataset.data[context.dataIndex] !== undefined;
-          },
-          color: 'white',
-          font: { weight: 'bold', size: 12 },
-          formatter: (value, ctx) => {
-            let val = 0;
-            if (Array.isArray(value)) {
-               val = value[1] - value[0];
-            } else {
-               val = value;
-            }
-            if (!val || Math.abs(val) < 1000) return "";
-            return Math.round(val/1000) + " k€";
-          },
-          anchor: 'center',
-          align: 'center'
+          display: false
         },
         tooltip: {
           callbacks: {
@@ -1521,7 +1505,7 @@ function getIrChartConfig(data) {
         }
       }
     },
-    plugins: [ChartDataLabels]
+    plugins: [] // Disable datalabels to avoid crashes on mobile waterfall
   };
 }
 

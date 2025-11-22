@@ -67,6 +67,30 @@ function initHelpPopups() {
     container.appendChild(hint);
   });
 
+  function repositionHelpBubble(bubble) {
+    if (!bubble) return;
+    const container = bubble.closest(".help-container");
+    if (!container) return;
+
+    // Reset alignment classes
+    container.classList.remove("align-left", "align-right");
+
+    // Measure after layout
+    requestAnimationFrame(() => {
+      const rect = bubble.getBoundingClientRect();
+      const vw = window.innerWidth || document.documentElement.clientWidth || 0;
+      const margin = 12;
+      const overflowRight = rect.right > vw - margin;
+      const overflowLeft = rect.left < margin;
+
+      if (overflowRight && !overflowLeft) {
+        container.classList.add("align-right");
+      } else if (overflowLeft && !overflowRight) {
+        container.classList.add("align-left");
+      }
+    });
+  }
+
   // 2. Process manual .help-container elements (link icon to bubble)
   document.querySelectorAll(".help-container").forEach((container, idx) => {
     const icon = container.querySelector(".help-icon");
@@ -87,7 +111,10 @@ function initHelpPopups() {
     });
     if (isIcon) {
       const target = document.getElementById(e.target.dataset.target);
-      if (target) target.classList.toggle("show");
+      if (target) {
+        target.classList.toggle("show");
+        if (target.classList.contains("show")) repositionHelpBubble(target);
+      }
     }
   });
 }

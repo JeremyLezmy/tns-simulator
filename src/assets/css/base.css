@@ -263,7 +263,7 @@ select:disabled {
   transform: translateX(-50%);
   margin-top: 8px;
   width: max-content;
-  max-width: 250px;
+  max-width: min(280px, calc(100vw - 32px));
   box-shadow: 0 4px 12px var(--shadow);
   font-weight: normal;
   line-height: 1.4;
@@ -271,6 +271,16 @@ select:disabled {
 }
 .help-bubble.show {
   display: block;
+}
+.help-container.align-left .help-bubble {
+  left: 0;
+  right: auto;
+  transform: translateX(0);
+}
+.help-container.align-right .help-bubble {
+  right: 0;
+  left: auto;
+  transform: translateX(0);
 }
 
 /* Amélioration de la lisibilité des liens dans le contenu */

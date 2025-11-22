@@ -1407,27 +1407,7 @@ function getIrChartConfig(data) {
           }
         },
         datalabels: {
-          display: function(context) {
-             // Safety check: ensure data exists and is not null
-             return context.dataset.data && 
-                    context.dataset.data.length > 0 && 
-                    context.dataset.data[context.dataIndex] !== null &&
-                    context.dataset.data[context.dataIndex] !== undefined;
-          },
-          color: 'white',
-          font: { weight: 'bold', size: 12 },
-          formatter: (value, ctx) => {
-            let val = 0;
-            if (Array.isArray(value)) {
-               val = value[1] - value[0];
-            } else {
-               val = value;
-            }
-            if (!val || Math.abs(val) < 1000) return "";
-            return Math.round(val/1000) + " k€";
-          },
-          anchor: 'center',
-          align: 'center'
+          display: false // Disabled to prevent mobile crash during initialization
         },
         tooltip: {
           callbacks: {

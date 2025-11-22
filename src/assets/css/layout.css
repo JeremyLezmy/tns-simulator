@@ -111,6 +111,24 @@ header.container {
     font-size: 12px;
   }
 
+  /* Fix for Notes & Sources buttons to match Projection tabs */
+  #notes-tabs .btn {
+    width: 100%;
+    margin: 0 !important;
+    padding: 10px 12px; /* Match tab padding */
+    font-size: 14px; /* Force readable size */
+    border-radius: 10px; /* Match tab radius */
+    background: var(--panel); /* Ensure consistency */
+    border: 1px solid var(--border);
+    text-align: center;
+    justify-content: center;
+  }
+  #notes-tabs .btn.active {
+    background: var(--soft);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+
   /* Fix for IR columns on mobile: Horizontal Slider */
   .row.ir-columns {
     display: flex;

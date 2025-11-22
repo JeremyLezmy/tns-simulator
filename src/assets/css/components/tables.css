@@ -154,7 +154,24 @@ th.num {
   .table-wrapper table {
     display: table; /* On conserve l'affichage tabulaire ! */
     overflow-x: initial; /* On désactive le scroll sur la table elle-même */
-    min-width: 600px; /* On force une largeur minimale pour déclencher le scroll si besoin */
+    min-width: 100%; /* On laisse la table s'adapter, plus de largeur forcée */
+    font-size: 12px; /* Police réduite pour mobile */
+  }
+
+  /* Optimisation de l'espace pour les colonnes sur mobile */
+  th, td {
+    padding: 4px 6px; /* Padding réduit */
+  }
+
+  /* Fix pour les tables détaillées tronquées (...) */
+  .detail-cotisations {
+    table-layout: auto; /* Permet aux colonnes de s'élargir selon le contenu */
+  }
+  .detail-cotisations th,
+  .detail-cotisations td {
+    white-space: nowrap; /* Empêche le retour à la ligne */
+    overflow: visible; /* Affiche tout le contenu */
+    text-overflow: clip; /* Supprime les "..." */
   }
 }
 
